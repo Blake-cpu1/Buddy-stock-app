@@ -91,32 +91,24 @@ export default function BuddyStocks() {
     fetchStocks();
   }, []);
 
-  const searchItemMarketValue = async (itemName: string, index: number) => {
-    if (!itemName.trim()) {
+  const searchItemMarketValue = async (searchItemName: string) => {
+    if (!searchItemName.trim()) {
       return;
     }
 
     try {
       const response = await axios.get(`${API_URL}/api/items/search`, {
-        params: { name: itemName }
+        params: { name: searchItemName }
       });
       
-      const newValues = [...investorItemValues];
-      const newIds = [...investorItemIds];
-      newValues[index] = response.data.market_value;
-      newIds[index] = response.data.id;
-      setInvestorItemValues(newValues);
-      setInvestorItemIds(newIds);
+      setItemValue(response.data.market_value);
+      setItemId(response.data.id);
     } catch (error: any) {
-      const newValues = [...investorItemValues];
-      const newIds = [...investorItemIds];
-      newValues[index] = null;
-      newIds[index] = null;
-      setInvestorItemValues(newValues);
-      setInvestorItemIds(newIds);
+      setItemValue(null);
+      setItemId(null);
       
       if (error.response?.status === 404) {
-        Alert.alert('Item Not Found', `Could not find "${itemName}" in Torn item database`);
+        Alert.alert('Item Not Found', `Could not find "${searchItemName}" in Torn item database`);
       }
     }
   };
