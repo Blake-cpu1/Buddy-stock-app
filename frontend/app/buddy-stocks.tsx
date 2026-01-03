@@ -187,17 +187,15 @@ export default function BuddyStocks() {
 
   const resetForm = () => {
     setStockName('');
+    setBuddyId('');
     setStartDate('');
     setDaysPerPayout('');
     setTotalCost('');
     setPayoutValue('');
     setBlankPayment('');
-    setPayoutsReceived('0');
-    setInvestorIds(['']);
-    setInvestorSplits(['100']);
-    setInvestorItems(['']);
-    setInvestorItemValues([null]);
-    setInvestorItemIds([null]);
+    setItemName('');
+    setItemId(null);
+    setItemValue(null);
     setEditingStock(null);
   };
 
