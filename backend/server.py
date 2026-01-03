@@ -472,6 +472,7 @@ async def create_stock(stock: StockCreate):
             "blank_payment": stock.blank_payment,
             "investors": investors_with_names,
             "total_payouts": total_payouts,
+            "payouts_received": stock.payouts_received,
             "created_at": datetime.utcnow()
         }
         
