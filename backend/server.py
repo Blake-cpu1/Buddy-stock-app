@@ -589,8 +589,6 @@ async def update_stock(stock_id: str, stock_update: StockUpdate):
             update_data["stock_name"] = stock_update.stock_name
         if stock_update.start_date is not None:
             update_data["start_date"] = stock_update.start_date
-        if stock_update.investment_length_days is not None:
-            update_data["investment_length_days"] = stock_update.investment_length_days
         if stock_update.days_per_payout is not None:
             update_data["days_per_payout"] = stock_update.days_per_payout
         if stock_update.total_cost is not None:
@@ -601,6 +599,9 @@ async def update_stock(stock_id: str, stock_update: StockUpdate):
             update_data["blank_payment"] = stock_update.blank_payment
         if stock_update.payouts_received is not None:
             update_data["payouts_received"] = stock_update.payouts_received
+        if stock_update.max_payouts is not None:
+            update_data["max_payouts"] = stock_update.max_payouts
+            update_data["total_payouts"] = stock_update.max_payouts
         
         # Handle investor updates
         if stock_update.investors is not None:
