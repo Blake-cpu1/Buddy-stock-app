@@ -277,6 +277,43 @@ export default function BuddyStocks() {
     }
   };
 
+  // Calculate overview stats
+  const calculateOverview = () => {
+    if (stocks.length === 0) return null;
+    
+    const totalCost = stocks.reduce((sum, s) => sum + s.total_cost, 0);
+    const totalReceived = stocks.reduce((sum, s) => sum + (s.total_received || 0), 0);
+    const totalPayoutsReceived = stocks.reduce((sum, s) => sum + (s.payouts_received || 0), 0);
+    
+    // Weekly payout value (sum of all payout values adjusted for frequency)
+    const weeklyPayout = stocks.reduce((sum, s) => {
+      const payoutsPerWeek = 7 / s.days_per_payout;
+      return sum + (s.payout_value * payoutsPerWeek);
+    }, 0);
+    
+    // Find next payout due (earliest)
+    const nextPayouts = stocks
+      .filter(s => s.next_payout_due)
+      .map(s => ({ name: s.stock_name, date: s.next_payout_due! }))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const nextPayoutDue = nextPayouts.length > 0 ? nextPayouts[0] : null;
+    
+    // Average ROI
+    const avgRoi = stocks.reduce((sum, s) => sum + s.annualized_roi, 0) / stocks.length;
+    
+    return {
+      totalCost,
+      totalReceived,
+      totalPayoutsReceived,
+      weeklyPayout,
+      nextPayoutDue,
+      avgRoi,
+      totalStocks: stocks.length,
+    };
+  };
+
+  const overview = calculateOverview();
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
