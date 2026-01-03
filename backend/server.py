@@ -48,18 +48,78 @@ class APIKeyUpdate(BaseModel):
 class APIKeyResponse(BaseModel):
     has_key: bool
     key_preview: Optional[str] = None
+    is_disabled: Optional[bool] = False
+
+# Helper functions for rate limiting and caching
+def check_rate_limit() -> bool:
+    """Check if we're within rate limits (100 requests per minute)"""
+    current_time = time.time()
+    # Remove requests older than 60 seconds
+    while request_timestamps and current_time - request_timestamps[0] > 60:
+        request_timestamps.popleft()
+    
+    # Check if we've hit the limit
+    if len(request_timestamps) >= 95:  # Stay under 100 for safety
+        logger.warning("Rate limit approaching, slowing down requests")
+        return False
+    return True
+
+def get_from_cache(cache_key: str) -> Optional[Dict[str, Any]]:
+    """Get data from cache if not expired"""
+    if cache_key in cache:
+        data, expiry_time = cache[cache_key]
+        if time.time() < expiry_time:
+            logger.info(f"Cache hit for {cache_key}")
+            return data
+        else:
+            # Remove expired cache entry
+            del cache[cache_key]
+    return None
+
+def save_to_cache(cache_key: str, data: Dict[str, Any]):
+    """Save data to cache with expiry"""
+    expiry_time = time.time() + CACHE_DURATION
+    cache[cache_key] = (data, expiry_time)
 
 # Helper function to get API key from database
 async def get_api_key() -> Optional[str]:
     """Retrieve the stored API key from database"""
     settings = await db.settings.find_one({"type": "api_key"})
     if settings:
+        # Check if key is marked as disabled
+        if settings.get("disabled", False):
+            raise HTTPException(
+                status_code=403,
+                detail="API key is disabled due to previous errors. Please update your API key in settings."
+            )
         return settings.get("key")
     return None
 
+async def disable_api_key(reason: str):
+    """Disable the API key in database when errors occur"""
+    logger.error(f"Disabling API key: {reason}")
+    await db.settings.update_one(
+        {"type": "api_key"},
+        {"$set": {"disabled": True, "disabled_reason": reason, "disabled_at": datetime.utcnow()}}
+    )
+
 # Helper function to make Torn API requests
 async def fetch_torn_api(endpoint: str, selections: str) -> Dict[str, Any]:
-    """Make a request to Torn API"""
+    """Make a request to Torn API with rate limiting, caching, and error handling"""
+    
+    # Check cache first
+    cache_key = f"{endpoint}:{selections}"
+    cached_data = get_from_cache(cache_key)
+    if cached_data:
+        return cached_data
+    
+    # Check rate limit
+    if not check_rate_limit():
+        raise HTTPException(
+            status_code=429,
+            detail="Rate limit approaching. Please wait a moment before making more requests."
+        )
+    
     api_key = await get_api_key()
     if not api_key:
         raise HTTPException(status_code=400, detail="API key not configured. Please set your Torn API key in settings.")
@@ -67,6 +127,9 @@ async def fetch_torn_api(endpoint: str, selections: str) -> Dict[str, Any]:
     url = f"{TORN_API_BASE}/{endpoint}?selections={selections}&key={api_key}"
     
     try:
+        # Record this request for rate limiting
+        request_timestamps.append(time.time())
+        
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(url)
             response.raise_for_status()
@@ -77,12 +140,31 @@ async def fetch_torn_api(endpoint: str, selections: str) -> Dict[str, Any]:
                 error_code = data["error"].get("code")
                 error_msg = data["error"].get("error", "Unknown error")
                 logger.error(f"Torn API Error {error_code}: {error_msg}")
-                raise HTTPException(status_code=400, detail=f"Torn API Error: {error_msg}")
+                
+                # Handle critical errors that require disabling the key
+                if error_code in [2, 13, 18]:  # Incorrect key, inactive user, key paused
+                    await disable_api_key(f"Error {error_code}: {error_msg}")
+                    raise HTTPException(
+                        status_code=403,
+                        detail=f"API key error: {error_msg}. Please update your API key in settings."
+                    )
+                elif error_code == 5:  # Too many requests
+                    raise HTTPException(
+                        status_code=429,
+                        detail="Torn API rate limit exceeded. Please wait before making more requests."
+                    )
+                else:
+                    raise HTTPException(status_code=400, detail=f"Torn API Error: {error_msg}")
+            
+            # Cache successful response
+            save_to_cache(cache_key, data)
             
             return data
     except httpx.HTTPError as e:
         logger.error(f"HTTP error occurred: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch data from Torn API: {str(e)}")
+    except HTTPException:
+        raise  # Re-raise HTTPExceptions as-is
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
