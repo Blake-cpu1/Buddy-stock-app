@@ -206,6 +206,30 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
   },
+  warningCard: {
+    backgroundColor: '#1a1a1a',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 24,
+    borderLeftWidth: 4,
+    borderLeftColor: '#ff9800',
+  },
+  warningHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  warningTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ff9800',
+    marginLeft: 8,
+  },
+  warningText: {
+    fontSize: 14,
+    color: '#ffb74d',
+    lineHeight: 20,
+  },
   currentKeyCard: {
     backgroundColor: '#1a1a1a',
     padding: 16,
