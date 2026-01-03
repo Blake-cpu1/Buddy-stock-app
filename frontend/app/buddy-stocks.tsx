@@ -611,6 +611,15 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#fff',
+    flex: 1,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  editModeButton: {
+    padding: 8,
+    marginRight: 4,
   },
   addButton: {
     padding: 4,
