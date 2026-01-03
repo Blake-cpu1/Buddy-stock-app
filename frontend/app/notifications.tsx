@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
-  Switch,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
@@ -77,6 +76,11 @@ export default function NotificationsScreen() {
 
   const requestPermissions = async () => {
     try {
+      if (Platform.OS === 'web') {
+        Alert.alert('Notice', 'Push notifications are not fully supported on web. Please use the mobile app.');
+        return;
+      }
+
       if (!Device.isDevice) {
         Alert.alert('Notice', 'Push notifications only work on physical devices, not simulators.');
         return;
@@ -108,30 +112,54 @@ export default function NotificationsScreen() {
 
   const sendTestNotification = async () => {
     try {
+      if (Platform.OS === 'web') {
+        Alert.alert('Web Notice', 'Push notifications are limited on web. This test will show an alert instead.');
+        return;
+      }
+
       if (permissionStatus !== 'granted') {
         Alert.alert('Permission Required', 'Please enable notifications first.');
         return;
       }
 
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: '🔔 Test Notification',
-          body: 'This is a test! Your payment reminders are working.',
-          data: { type: 'test' },
-          sound: true,
-        },
-        trigger: null, // null = send immediately
+      // Use presentNotificationAsync for immediate notification
+      await Notifications.presentNotificationAsync({
+        title: '🔔 Test Notification',
+        body: 'This is a test! Your payment reminders are working.',
+        data: { type: 'test' },
       });
 
-      Alert.alert('Test Sent', 'You should receive a test notification now!');
+      Alert.alert('Test Sent', 'You should see a test notification!');
     } catch (error) {
       console.error('Error sending test notification:', error);
-      Alert.alert('Error', 'Failed to send test notification');
+      // Try alternative method
+      try {
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: '🔔 Test Notification',
+            body: 'This is a test! Your payment reminders are working.',
+            data: { type: 'test' },
+          },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+            seconds: 1,
+          },
+        });
+        Alert.alert('Test Sent', 'You should receive a test notification in 1 second!');
+      } catch (err) {
+        console.error('Alternative method also failed:', err);
+        Alert.alert('Error', 'Failed to send test notification. This feature works best on physical devices.');
+      }
     }
   };
 
   const schedulePaymentNotifications = async () => {
     try {
+      if (Platform.OS === 'web') {
+        Alert.alert('Web Notice', 'Scheduled notifications are not supported on web. Please use the mobile app.');
+        return;
+      }
+
       if (permissionStatus !== 'granted') {
         Alert.alert('Permission Required', 'Please enable notifications first.');
         return;
@@ -150,47 +178,84 @@ export default function NotificationsScreen() {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
+      // Collect all due dates for the next 30 days
+      const dueDatesMap: { [key: string]: string[] } = {}; // date string -> stock names
+
       for (const stock of stocks) {
         // Fetch payment schedule for each stock
         const paymentsResponse = await axios.get(`${API_URL}/api/stocks/${stock.id}/payments`);
         const payments = paymentsResponse.data.payments;
 
-        // Schedule notifications for unpaid payments in the next 30 days
+        // Get unpaid payments in the next 30 days
         for (const payment of payments) {
           if (payment.paid) continue;
 
           const dueDate = new Date(payment.due_date);
-          dueDate.setHours(9, 0, 0, 0); // Set notification time to 9 AM
-
-          // Only schedule if the date is in the future and within 30 days
           const diffDays = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-          if (diffDays > 0 && diffDays <= 30) {
-            await Notifications.scheduleNotificationAsync({
-              content: {
-                title: `💰 Payment Due: ${stock.stock_name}`,
-                body: `Payment #${payment.payment_number} is due today!`,
-                data: { stockId: stock.id, paymentNumber: payment.payment_number },
-                sound: true,
-              },
-              trigger: {
-                date: dueDate,
-              },
-            });
-            notificationsScheduled++;
+          
+          if (diffDays >= 0 && diffDays <= 30) {
+            const dateKey = payment.due_date;
+            if (!dueDatesMap[dateKey]) {
+              dueDatesMap[dateKey] = [];
+            }
+            dueDatesMap[dateKey].push(stock.stock_name);
           }
+        }
+      }
+
+      // Schedule daily 2 PM notifications for the next 30 days
+      for (let i = 0; i <= 30; i++) {
+        const notifDate = new Date(today);
+        notifDate.setDate(notifDate.getDate() + i);
+        notifDate.setHours(14, 0, 0, 0); // 2 PM
+
+        // Skip if the date is in the past
+        if (notifDate.getTime() <= Date.now()) continue;
+
+        const dateKey = notifDate.toISOString().split('T')[0];
+        const stocksDueToday = dueDatesMap[dateKey] || [];
+
+        let title: string;
+        let body: string;
+
+        if (stocksDueToday.length > 0) {
+          title = `💰 ${stocksDueToday.length} Payment${stocksDueToday.length > 1 ? 's' : ''} Due Today!`;
+          body = stocksDueToday.join(', ');
+        } else {
+          title = '✅ No Payments Due Today';
+          body = 'All clear! No investment payments due today.';
+        }
+
+        try {
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title,
+              body,
+              data: { type: 'daily', date: dateKey },
+              sound: true,
+            },
+            trigger: {
+              type: Notifications.SchedulableTriggerInputTypes.DATE,
+              date: notifDate,
+            },
+          });
+          notificationsScheduled++;
+        } catch (err) {
+          console.error(`Failed to schedule notification for ${dateKey}:`, err);
         }
       }
 
       setScheduledCount(notificationsScheduled);
       Alert.alert(
         'Notifications Scheduled',
-        `${notificationsScheduled} payment reminder(s) scheduled for the next 30 days. You'll be notified at 9 AM on each due date.`
+        `${notificationsScheduled} daily reminder(s) scheduled for 2 PM over the next 30 days.\n\nYou'll be notified about due payments or if there are none that day.`
       );
     } catch (error) {
       console.error('Error scheduling notifications:', error);
       Alert.alert('Error', 'Failed to schedule notifications');
     } finally {
       setScheduling(false);
+      getScheduledNotifications();
     }
   };
 
@@ -271,7 +336,6 @@ export default function NotificationsScreen() {
           <TouchableOpacity 
             style={[styles.actionButton, styles.testButton]} 
             onPress={sendTestNotification}
-            disabled={permissionStatus !== 'granted'}
           >
             <Ionicons name="send" size={20} color="#fff" />
             <Text style={styles.actionButtonText}>Send Test Notification</Text>
@@ -282,25 +346,26 @@ export default function NotificationsScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Ionicons name="calendar" size={24} color="#ffc107" />
-            <Text style={styles.cardTitle}>Payment Reminders</Text>
+            <Text style={styles.cardTitle}>Daily Payment Reminders</Text>
           </View>
           
           <Text style={styles.cardDescription}>
-            Schedule notifications for all upcoming payment due dates in the next 30 days. 
-            You'll receive a reminder at 9 AM on each due date.
+            Schedule daily notifications at 2 PM for the next 30 days.{'\n\n'}
+            • If payments are due: Shows which investments need payment{'\n'}
+            • If no payments: "No payments due today!"
           </Text>
 
           <TouchableOpacity 
             style={[styles.actionButton, styles.scheduleButton]} 
             onPress={schedulePaymentNotifications}
-            disabled={permissionStatus !== 'granted' || scheduling}
+            disabled={scheduling}
           >
             {scheduling ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
               <>
                 <Ionicons name="alarm" size={20} color="#fff" />
-                <Text style={styles.actionButtonText}>Schedule All Reminders</Text>
+                <Text style={styles.actionButtonText}>Schedule Daily Reminders</Text>
               </>
             )}
           </TouchableOpacity>
@@ -320,7 +385,7 @@ export default function NotificationsScreen() {
         <View style={styles.infoCard}>
           <Ionicons name="information-circle" size={20} color="#888" />
           <Text style={styles.infoText}>
-            Notifications work best on physical devices. Scheduled reminders will persist even if you close the app.
+            Notifications work best on physical devices with the Expo Go app or a standalone build. Web has limited support.
           </Text>
         </View>
       </ScrollView>
