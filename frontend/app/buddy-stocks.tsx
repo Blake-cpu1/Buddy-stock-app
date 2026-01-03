@@ -74,13 +74,6 @@ export default function BuddyStocks() {
     fetchStocks();
   }, []);
 
-  // Auto-fill blank payment when stock name changes
-  useEffect(() => {
-    if (stockName && !editingStock) {
-      setBlankPayment(stockName);
-    }
-  }, [stockName]);
-
   const fetchStocks = async () => {
     try {
       const response = await axios.get(`${API_URL}/api/stocks`);
