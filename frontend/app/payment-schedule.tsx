@@ -339,6 +339,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 6,
   },
+  unmarkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ff9800',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  unmarkButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
   investorsSection: {
     borderTopWidth: 1,
     borderTopColor: '#333',
