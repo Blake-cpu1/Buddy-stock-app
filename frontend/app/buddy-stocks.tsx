@@ -440,15 +440,9 @@ export default function BuddyStocks() {
                 <TextInput style={styles.input} value={startDate} onChangeText={setStartDate} placeholder="2026-01-01" placeholderTextColor="#666" />
               </View>
 
-              <View style={styles.inputRow}>
-                <View style={styles.inputHalf}>
-                  <Text style={styles.label}>Investment Length (Days)</Text>
-                  <TextInput style={styles.input} value={investmentLength} onChangeText={setInvestmentLength} placeholder="60" placeholderTextColor="#666" keyboardType="numeric" />
-                </View>
-                <View style={styles.inputHalf}>
-                  <Text style={styles.label}>Days Per Payout</Text>
-                  <TextInput style={styles.input} value={daysPerPayout} onChangeText={setDaysPerPayout} placeholder="7" placeholderTextColor="#666" keyboardType="numeric" />
-                </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Days Per Payout</Text>
+                <TextInput style={styles.input} value={daysPerPayout} onChangeText={setDaysPerPayout} placeholder="7" placeholderTextColor="#666" keyboardType="numeric" />
               </View>
 
               <View style={styles.inputGroup}>
