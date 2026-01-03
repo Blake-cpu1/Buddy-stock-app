@@ -943,17 +943,21 @@ async def check_events_for_payments(stock_id: str):
                 item_ids = investor_info["item_ids"]
                 item_names = investor_info["item_names"]
                 
-                # Check if any item matches
+                # Check if any item in the log matches ANY of our tracked items
                 for item in items:
-                    if item.get("id") == item_id:
+                    log_item_id = item.get("id")
+                    if log_item_id in item_ids:
+                        # Find the matching item name
+                        item_idx = item_ids.index(log_item_id)
+                        matched_item_name = item_names[item_idx] if item_idx < len(item_names) else ""
                         all_matching_logs.append({
                             "log_id": log_id,
                             "timestamp": log_timestamp,
                             "sender_id": sender_id,
-                            "item_id": item_id,
-                            "item_name": investor_info["item_name"],
+                            "item_id": log_item_id,
+                            "item_name": matched_item_name,
                             "user_name": investor_info["user_name"],
-                            "log_text": f"{investor_info['user_name']} sent {investor_info['item_name']}"
+                            "log_text": f"{investor_info['user_name']} sent {matched_item_name}"
                         })
                         break
         
@@ -977,7 +981,14 @@ async def check_events_for_payments(stock_id: str):
             # Check each investor payment
             for inv_payment in payment["investor_payments"]:
                 user_id = inv_payment["user_id"]
-                item_id = inv_payment.get("item_id")
+                # Get all item IDs this investor might send
+                investor_info = investor_item_map.get(user_id, {})
+                item_ids = investor_info.get("item_ids", [])
+                
+                # Also check legacy item_id
+                legacy_item_id = inv_payment.get("item_id")
+                if legacy_item_id and legacy_item_id not in item_ids:
+                    item_ids.append(legacy_item_id)
                 
                 if not item_id:
                     inv_payment["detected_log"] = None
