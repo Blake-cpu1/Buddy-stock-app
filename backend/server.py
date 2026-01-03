@@ -577,6 +577,8 @@ async def update_stock(stock_id: str, stock_update: StockUpdate):
             update_data["payout_value"] = stock_update.payout_value
         if stock_update.blank_payment is not None:
             update_data["blank_payment"] = stock_update.blank_payment
+        if stock_update.payouts_received is not None:
+            update_data["payouts_received"] = stock_update.payouts_received
         
         # Handle investor updates
         if stock_update.investors is not None:
