@@ -621,27 +621,15 @@ const styles = StyleSheet.create({
   roiNegative: {
     color: '#f44336',
   },
-  investorSection: {
+  buddyItemSection: {
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: '#333',
   },
-  investorTitle: {
+  buddyItemText: {
     fontSize: 14,
-    color: '#888',
-    marginBottom: 6,
-  },
-  investorText: {
-    fontSize: 14,
-    color: '#fff',
-    marginBottom: 4,
-  },
-  itemText: {
-    fontSize: 13,
     color: '#4caf50',
-    marginLeft: 16,
-    marginBottom: 4,
   },
   viewPaymentsButton: {
     flexDirection: 'row',
