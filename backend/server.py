@@ -869,7 +869,7 @@ async def mark_payment_paid(stock_id: str, payment_number: int, investor_user_id
 
 @api_router.post("/stocks/{stock_id}/payments/check-events")
 async def check_events_for_payments(stock_id: str):
-    """Check Torn logs API to auto-detect payments from specific users sending specific items"""
+    """Check Torn logs API to find matching logs for payments (does NOT mark as paid)"""
     try:
         from bson import ObjectId
         from dateutil import parser as date_parser
@@ -879,9 +879,8 @@ async def check_events_for_payments(stock_id: str):
             raise HTTPException(status_code=404, detail="Stock not found")
         
         payment_schedule = stock.get("payment_schedule", [])
-        updates_made = 0
+        detections_made = 0
         detected_logs = []
-        used_log_ids = set()  # Track which log entries we've already used
         
         # Build a map of investor user_ids to their item_ids for quick lookup
         investor_item_map = {}
@@ -898,7 +897,7 @@ async def check_events_for_payments(stock_id: str):
         if not investor_item_map:
             return {
                 "success": False,
-                "updates_made": 0,
+                "detections_made": 0,
                 "detected_logs": [],
                 "message": "No investors with item IDs configured. Please set item names for investors."
             }
@@ -909,8 +908,8 @@ async def check_events_for_payments(stock_id: str):
         
         logger.info(f"Fetched {len(logs)} log entries for payment detection")
         
-        # Build a list of matching logs sorted by timestamp (oldest first)
-        matching_logs = []
+        # Build list of all matching logs with their timestamps
+        all_matching_logs = []
         for log_id, log_entry in logs.items():
             log_data = log_entry.get("data", {})
             sender_id = log_data.get("sender")
@@ -925,97 +924,95 @@ async def check_events_for_payments(stock_id: str):
                 # Check if any item matches
                 for item in items:
                     if item.get("id") == item_id:
-                        matching_logs.append({
+                        all_matching_logs.append({
                             "log_id": log_id,
                             "timestamp": log_timestamp,
                             "sender_id": sender_id,
                             "item_id": item_id,
                             "item_name": investor_info["item_name"],
-                            "user_name": investor_info["user_name"]
+                            "user_name": investor_info["user_name"],
+                            "log_text": f"{investor_info['user_name']} sent {investor_info['item_name']}"
                         })
                         break
         
-        # Sort by timestamp (oldest first) so we match oldest logs to oldest payments
-        matching_logs.sort(key=lambda x: x["timestamp"])
+        logger.info(f"Found {len(all_matching_logs)} total matching log entries")
         
-        logger.info(f"Found {len(matching_logs)} matching log entries for investors")
+        # Track which logs have been assigned to payments
+        used_log_ids = set()
         
-        # Check each unpaid payment (sorted by payment number, oldest first)
-        unpaid_payments = [(i, p) for i, p in enumerate(payment_schedule) if not p["paid"]]
-        
-        for match_log in matching_logs:
-            log_id = match_log["log_id"]
-            
-            # Skip if we've already used this log
-            if log_id in used_log_ids:
+        # Check each payment and try to find a matching log within ±24 hours of due date
+        for payment in payment_schedule:
+            # Parse the due date
+            try:
+                due_date = datetime.strptime(payment["due_date"], "%Y-%m-%d")
+            except:
                 continue
             
-            # Find the first unpaid payment for this investor
-            for idx, payment in unpaid_payments:
-                if payment["paid"]:
+            # Define the 24-hour window (±24 hours from due date)
+            window_start = due_date - timedelta(hours=24)
+            window_end = due_date + timedelta(hours=24)
+            
+            # Check each investor payment
+            for inv_payment in payment["investor_payments"]:
+                user_id = inv_payment["user_id"]
+                item_id = inv_payment.get("item_id")
+                
+                if not item_id:
+                    inv_payment["detected_log"] = None
+                    inv_payment["detection_status"] = "no_item_configured"
                     continue
                 
-                # Check each investor payment
-                for inv_payment in payment["investor_payments"]:
-                    if inv_payment["paid"]:
+                # Find a matching log within the time window
+                found_log = None
+                for log in all_matching_logs:
+                    if log["log_id"] in used_log_ids:
                         continue
                     
-                    user_id = inv_payment["user_id"]
-                    item_id = inv_payment.get("item_id")
-                    
-                    # Match if this log is for this investor and item
-                    if user_id == match_log["sender_id"] and item_id == match_log["item_id"]:
-                        # Mark as paid
-                        inv_payment["paid"] = True
-                        inv_payment["detected_log_id"] = log_id
-                        log_date = datetime.fromtimestamp(match_log["timestamp"]).date() if match_log["timestamp"] else None
-                        inv_payment["detected_log_text"] = f"Item received from {match_log['user_name']} on {log_date.isoformat() if log_date else 'unknown date'}"
-                        inv_payment["detected_date"] = log_date.isoformat() if log_date else None
+                    if log["sender_id"] == user_id and log["item_id"] == item_id:
+                        log_datetime = datetime.fromtimestamp(log["timestamp"])
                         
-                        # Mark log as used
-                        used_log_ids.add(log_id)
-                        updates_made += 1
-                        detected_logs.append({
-                            "payment_number": payment["payment_number"],
-                            "investor": match_log["user_name"],
-                            "item": match_log["item_name"],
-                            "log_text": f"Received {match_log['item_name']} from {match_log['user_name']}",
-                            "timestamp": match_log["timestamp"],
-                            "date": log_date.isoformat() if log_date else None
-                        })
-                        logger.info(f"Auto-detected payment #{payment['payment_number']} from user {user_id} ({match_log['user_name']}) - {match_log['item_name']} in log {log_id}")
-                        
-                        # Check if all investors paid for this payment
-                        all_paid = all(inv["paid"] for inv in payment["investor_payments"])
-                        if all_paid:
-                            payment["paid"] = True
-                            payment["paid_date"] = datetime.utcnow().isoformat()
-                            payment["log_entry"] = "Auto-detected from logs"
-                        
-                        break  # Move to next log
+                        # Check if log is within ±24 hours of due date
+                        if window_start <= log_datetime <= window_end:
+                            found_log = log
+                            used_log_ids.add(log["log_id"])
+                            break
                 
-                if log_id in used_log_ids:
-                    break  # This log has been used, move to next log
+                if found_log:
+                    # Store detection info but DO NOT mark as paid
+                    inv_payment["detected_log_id"] = found_log["log_id"]
+                    inv_payment["detected_log_text"] = found_log["log_text"]
+                    log_date = datetime.fromtimestamp(found_log["timestamp"])
+                    inv_payment["detected_date"] = log_date.strftime("%d/%m/%Y %H:%M")
+                    inv_payment["detection_status"] = "found"
+                    
+                    detections_made += 1
+                    detected_logs.append({
+                        "payment_number": payment["payment_number"],
+                        "due_date": payment["due_date"],
+                        "investor": found_log["user_name"],
+                        "item": found_log["item_name"],
+                        "log_text": found_log["log_text"],
+                        "detected_date": inv_payment["detected_date"]
+                    })
+                    logger.info(f"Found log for payment #{payment['payment_number']} from {found_log['user_name']}")
+                else:
+                    # No matching log found within the time window
+                    inv_payment["detected_log_id"] = None
+                    inv_payment["detected_log_text"] = None
+                    inv_payment["detected_date"] = None
+                    inv_payment["detection_status"] = "no_log_found"
         
-        # Update payment schedule if changes were made
-        if updates_made > 0:
-            await db.stocks.update_one(
-                {"_id": ObjectId(stock_id)},
-                {"$set": {"payment_schedule": payment_schedule}}
-            )
-            
-            # Recalculate payouts_received
-            payouts_received = sum(1 for p in payment_schedule if p["paid"])
-            await db.stocks.update_one(
-                {"_id": ObjectId(stock_id)},
-                {"$set": {"payouts_received": payouts_received}}
-            )
+        # Update payment schedule with detection info
+        await db.stocks.update_one(
+            {"_id": ObjectId(stock_id)},
+            {"$set": {"payment_schedule": payment_schedule}}
+        )
         
         return {
             "success": True,
-            "updates_made": updates_made,
+            "detections_made": detections_made,
             "detected_logs": detected_logs,
-            "message": f"Detected {updates_made} payment(s) from {len(matching_logs)} log entries"
+            "message": f"Found {detections_made} matching log(s) within ±24 hours of due dates. Payments NOT marked as paid - please mark manually."
         }
     
     except HTTPException:
