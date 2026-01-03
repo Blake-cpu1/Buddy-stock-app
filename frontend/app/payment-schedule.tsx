@@ -147,9 +147,9 @@ export default function PaymentSchedule() {
         </View>
         <TouchableOpacity onPress={handleDetectEvents} style={styles.detectButton} disabled={detectingEvents}>
           {detectingEvents ? (
-            <ActivityIndicator size="small" color="#fff" />
+            <ActivityIndicator size="small" color="#4caf50" />
           ) : (
-            <Ionicons name="scan" size={24} color="#fff" />
+            <Ionicons name="scan" size={28} color="#4caf50" />
           )}
         </TouchableOpacity>
       </View>
