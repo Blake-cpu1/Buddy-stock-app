@@ -176,7 +176,7 @@ async def root():
 
 @api_router.post("/settings/api-key")
 async def update_api_key(data: APIKeyUpdate):
-    """Update the Torn API key"""
+    """Update the Torn API key with validation"""
     try:
         # Validate the API key by making a test request
         url = f"{TORN_API_BASE}/user/?selections=basic&key={data.api_key}"
@@ -185,17 +185,35 @@ async def update_api_key(data: APIKeyUpdate):
             result = response.json()
             
             if "error" in result:
+                error_code = result["error"].get("code")
                 error_msg = result["error"].get("error", "Invalid API key")
+                
+                # Log the specific error code for debugging
+                logger.warning(f"API key validation failed with error code {error_code}: {error_msg}")
+                
                 raise HTTPException(status_code=400, detail=f"Invalid API key: {error_msg}")
         
-        # Store the API key in database
+        # Store the API key in database and clear any disabled flag
         await db.settings.update_one(
             {"type": "api_key"},
-            {"$set": {"key": data.api_key, "updated_at": datetime.utcnow()}},
+            {
+                "$set": {
+                    "key": data.api_key,
+                    "updated_at": datetime.utcnow(),
+                    "disabled": False  # Re-enable if previously disabled
+                },
+                "$unset": {
+                    "disabled_reason": "",
+                    "disabled_at": ""
+                }
+            },
             upsert=True
         )
         
-        logger.info("API key updated successfully")
+        # Clear cache when API key is updated
+        cache.clear()
+        
+        logger.info("API key updated successfully and re-enabled")
         return {"success": True, "message": "API key saved successfully"}
     
     except HTTPException:
@@ -206,13 +224,19 @@ async def update_api_key(data: APIKeyUpdate):
 
 @api_router.get("/settings/api-key", response_model=APIKeyResponse)
 async def get_api_key_status():
-    """Check if API key is configured"""
-    api_key = await get_api_key()
-    if api_key:
-        # Return first 4 and last 4 characters for preview
-        preview = f"{api_key[:4]}...{api_key[-4:]}" if len(api_key) > 8 else "****"
-        return APIKeyResponse(has_key=True, key_preview=preview)
-    return APIKeyResponse(has_key=False)
+    """Check if API key is configured and its status"""
+    try:
+        settings = await db.settings.find_one({"type": "api_key"})
+        if settings and settings.get("key"):
+            api_key = settings.get("key")
+            is_disabled = settings.get("disabled", False)
+            # Return first 4 and last 4 characters for preview
+            preview = f"{api_key[:4]}...{api_key[-4:]}" if len(api_key) > 8 else "****"
+            return APIKeyResponse(has_key=True, key_preview=preview, is_disabled=is_disabled)
+        return APIKeyResponse(has_key=False, is_disabled=False)
+    except Exception as e:
+        logger.error(f"Error getting API key status: {e}")
+        return APIKeyResponse(has_key=False, is_disabled=False)
 
 @api_router.get("/user/dashboard")
 async def get_dashboard_data():
