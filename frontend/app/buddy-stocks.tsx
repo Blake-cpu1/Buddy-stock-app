@@ -714,6 +714,17 @@ const styles = StyleSheet.create({
     color: '#4caf50',
     fontWeight: 'bold',
   },
+  roiText: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  roiPositive: {
+    color: '#4caf50',
+  },
+  roiNegative: {
+    color: '#f44336',
+  },
   investorSection: {
     marginTop: 12,
     paddingTop: 12,
