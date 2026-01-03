@@ -33,7 +33,6 @@ interface Stock {
   id: string;
   stock_name: string;
   start_date: string;
-  investment_length_days: number;
   days_per_payout: number;
   total_cost: number;
   payout_value: number;
@@ -44,6 +43,8 @@ interface Stock {
   total_received: number;
   blake_total: number;
   next_payout_due?: string;
+  days_since_start: number;
+  annualized_roi: number;
 }
 
 export default function BuddyStocks() {
