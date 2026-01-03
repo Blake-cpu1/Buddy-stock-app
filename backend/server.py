@@ -523,12 +523,15 @@ async def get_stocks():
             except:
                 stock["days_since_start"] = 1
             
-            # Calculate annualized ROI percentage
+            # Calculate ROI using formula: ((100/cost)*(payout_value/days_per_payout))/100
+            # This gives daily ROI, multiply by 365 for annual
             total_cost = stock["total_cost"]
-            if total_cost > 0 and stock["days_since_start"] > 0:
-                profit = total_received - total_cost
-                roi_per_day = profit / total_cost / stock["days_since_start"]
-                annualized_roi = roi_per_day * 365 * 100  # Convert to percentage
+            payout_value = stock["payout_value"]
+            days_per_payout = stock["days_per_payout"]
+            
+            if total_cost > 0 and days_per_payout > 0:
+                daily_roi = ((100 / total_cost) * (payout_value / days_per_payout)) / 100
+                annualized_roi = daily_roi * 365 * 100  # Convert to percentage
                 stock["annualized_roi"] = round(annualized_roi, 2)
             else:
                 stock["annualized_roi"] = 0.0
