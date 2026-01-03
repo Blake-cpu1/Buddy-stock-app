@@ -8,7 +8,9 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
 import httpx
-from datetime import datetime
+from datetime import datetime, timedelta
+import time
+from collections import deque
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -33,6 +35,11 @@ logger = logging.getLogger(__name__)
 
 # Torn API Base URL
 TORN_API_BASE = "https://api.torn.com"
+
+# Rate limiting and caching
+request_timestamps = deque(maxlen=100)  # Track last 100 requests
+cache = {}  # Simple cache: {cache_key: (data, expiry_time)}
+CACHE_DURATION = 30  # Cache for 30 seconds (API caches for 29s)
 
 # Define Models
 class APIKeyUpdate(BaseModel):
