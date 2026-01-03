@@ -80,8 +80,12 @@ class StockUpdate(BaseModel):
     investors: Optional[list[InvestorSplit]] = None
     payouts_received: Optional[int] = None  # Track received payouts
 
-class PaymentUpdate(BaseModel):
-    paid: bool
+class PaymentSchedule(BaseModel):
+    payment_number: int
+    due_date: str  # YYYY-MM-DD
+    paid: bool = False
+    paid_date: Optional[str] = None
+    investor_payments: list[dict] = []  # [{user_id, user_name, amount, item_name, paid}]
     log_entry: Optional[str] = None
 
 # Helper functions for rate limiting and caching
