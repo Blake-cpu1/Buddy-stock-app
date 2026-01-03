@@ -331,9 +331,14 @@ export default function BuddyStocks() {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Stock Investments</Text>
-        <TouchableOpacity onPress={() => { resetForm(); setModalVisible(true); }} style={styles.addButton}>
-          <Ionicons name="add-circle" size={28} color="#4caf50" />
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity onPress={() => setEditMode(!editMode)} style={styles.editModeButton}>
+            <Ionicons name={editMode ? "create" : "create-outline"} size={24} color={editMode ? "#ffc107" : "#888"} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => { resetForm(); setModalVisible(true); }} style={styles.addButton}>
+            <Ionicons name="add-circle" size={28} color="#4caf50" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
