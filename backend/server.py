@@ -619,19 +619,21 @@ async def update_stock(stock_id: str, stock_update: StockUpdate):
                 except:
                     user_name = f"User {inv.user_id}"
                 
-                investors_with_names.append({
+                investor_data = {
                     "user_id": inv.user_id,
                     "user_name": user_name,
-                    "split_percentage": inv.split_percentage
-                })
+                    "split_percentage": inv.split_percentage,
+                    "item_name": inv.item_name,
+                    "item_id": inv.item_id,
+                    "market_value": inv.market_value
+                }
+                
+                investors_with_names.append(investor_data)
             
             update_data["investors"] = investors_with_names
         
-        # Recalculate total payouts if needed
-        investment_length = update_data.get("investment_length_days", existing_stock.get("investment_length_days"))
-        days_per_payout = update_data.get("days_per_payout", existing_stock.get("days_per_payout"))
-        if investment_length and days_per_payout:
-            update_data["total_payouts"] = investment_length // days_per_payout
+        # No need to recalculate total_payouts for ongoing investments
+        # total_payouts is set by max_payouts
         
         update_data["updated_at"] = datetime.utcnow()
         
