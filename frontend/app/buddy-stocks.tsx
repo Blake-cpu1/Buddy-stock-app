@@ -864,6 +864,11 @@ const styles = StyleSheet.create({
   roiNegative: {
     color: '#f44336',
   },
+  breakevenText: {
+    fontSize: 11,
+    color: '#ffc107',
+    marginTop: 2,
+  },
   buddyItemSection: {
     marginTop: 12,
     paddingTop: 12,
