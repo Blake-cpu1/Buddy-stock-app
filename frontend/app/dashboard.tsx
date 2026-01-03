@@ -458,4 +458,19 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#9c27b0',
   },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#252525',
+    padding: 16,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  actionButtonText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    marginLeft: 12,
+  },
 });
