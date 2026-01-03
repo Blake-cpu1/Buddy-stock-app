@@ -54,6 +54,9 @@ class InvestorSplit(BaseModel):
     user_id: int
     user_name: Optional[str] = None  # Optional, will be fetched from API if not provided
     split_percentage: float
+    item_name: Optional[str] = None  # Item they're sending (e.g., "Drug Pack")
+    item_id: Optional[int] = None  # Torn item ID
+    market_value: Optional[int] = None  # Current market value
 
 class StockCreate(BaseModel):
     stock_name: str
