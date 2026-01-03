@@ -54,35 +54,30 @@ class InvestorSplit(BaseModel):
     user_id: int
     user_name: str
     split_percentage: float
-    amount_per_payout: int
 
-class BuddyStockCreate(BaseModel):
+class StockCreate(BaseModel):
     stock_name: str
     start_date: str  # YYYY-MM-DD format
     investment_length_days: int
     days_per_payout: int
     total_cost: int
     payout_value: int
+    blank_payment: int
     investors: list[InvestorSplit]
 
-class PaymentRecord(BaseModel):
-    payment_date: str
-    paid: bool = False
+class StockUpdate(BaseModel):
+    stock_name: Optional[str] = None
+    start_date: Optional[str] = None
+    investment_length_days: Optional[int] = None
+    days_per_payout: Optional[int] = None
+    total_cost: Optional[int] = None
+    payout_value: Optional[int] = None
+    blank_payment: Optional[int] = None
+    investors: Optional[list[InvestorSplit]] = None
+
+class PaymentUpdate(BaseModel):
+    paid: bool
     log_entry: Optional[str] = None
-
-class BuddyStockResponse(BaseModel):
-    id: str
-    stock_name: str
-    start_date: str
-    investment_length_days: int
-    days_per_payout: int
-    total_cost: int
-    payout_value: int
-    investors: list[InvestorSplit]
-    total_payouts: int
-    next_payout_date: Optional[str] = None
-    days_until_next: Optional[int] = None
-    payments: list[PaymentRecord] = []
 
 # Helper functions for rate limiting and caching
 def check_rate_limit() -> bool:
