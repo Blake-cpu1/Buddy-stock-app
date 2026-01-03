@@ -795,6 +795,7 @@ async def get_payment_schedule(stock_id: str, regenerate: bool = False):
         return {
             "stock_id": str(stock["_id"]),
             "stock_name": stock["stock_name"],
+            "blank_payment": stock.get("blank_payment", 0),
             "payments": payment_schedule
         }
     
