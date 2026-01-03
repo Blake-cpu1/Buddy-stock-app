@@ -90,25 +90,38 @@ export default function BuddyStocks() {
     fetchStocks();
   }, []);
 
-  const searchItemMarketValue = async (searchItemName: string) => {
-    if (!searchItemName.trim()) {
+  const searchItemMarketValue = async (itemNamesStr: string) => {
+    if (!itemNamesStr.trim()) {
+      setItemsData([]);
       return;
     }
 
-    try {
-      const response = await axios.get(`${API_URL}/api/items/search`, {
-        params: { name: searchItemName }
-      });
-      
-      setItemValue(response.data.market_value);
-      setItemId(response.data.id);
-    } catch (error: any) {
-      setItemValue(null);
-      setItemId(null);
-      
-      if (error.response?.status === 404) {
-        Alert.alert('Item Not Found', `Could not find "${searchItemName}" in Torn item database`);
+    // Parse comma-separated item names
+    const itemNamesList = itemNamesStr.split(',').map(n => n.trim()).filter(n => n);
+    const foundItems: Array<{name: string, id: number, value: number}> = [];
+    const notFoundItems: string[] = [];
+
+    for (const name of itemNamesList) {
+      try {
+        const response = await axios.get(`${API_URL}/api/items/search`, {
+          params: { name }
+        });
+        foundItems.push({
+          name: response.data.name,
+          id: response.data.id,
+          value: response.data.market_value
+        });
+      } catch (error: any) {
+        if (error.response?.status === 404) {
+          notFoundItems.push(name);
+        }
       }
+    }
+
+    setItemsData(foundItems);
+
+    if (notFoundItems.length > 0) {
+      Alert.alert('Items Not Found', `Could not find: ${notFoundItems.join(', ')}`);
     }
   };
 
