@@ -651,6 +651,218 @@ async def delete_stock(stock_id: str):
         logger.error(f"Error deleting stock: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Payment Schedule Endpoints
+def generate_payment_schedule(stock: dict) -> list:
+    """Generate payment schedule for a stock"""
+    from dateutil import parser
+    from datetime import timedelta
+    
+    start_date = parser.parse(stock["start_date"]).date()
+    payments = []
+    
+    for payment_num in range(1, stock["total_payouts"] + 1):
+        due_date = start_date + timedelta(days=payment_num * stock["days_per_payout"])
+        
+        # Calculate amount per investor based on payout value and splits
+        investor_payments = []
+        for inv in stock["investors"]:
+            amount = int(stock["payout_value"] * (inv["split_percentage"] / 100))
+            investor_payments.append({
+                "user_id": inv["user_id"],
+                "user_name": inv["user_name"],
+                "split_percentage": inv["split_percentage"],
+                "amount": amount,
+                "item_name": inv.get("item_name"),
+                "item_id": inv.get("item_id"),
+                "paid": False
+            })
+        
+        payments.append({
+            "payment_number": payment_num,
+            "due_date": due_date.isoformat(),
+            "paid": False,
+            "paid_date": None,
+            "investor_payments": investor_payments,
+            "log_entry": None
+        })
+    
+    return payments
+
+@api_router.get("/stocks/{stock_id}/payments")
+async def get_payment_schedule(stock_id: str):
+    """Get payment schedule for a stock"""
+    try:
+        from bson import ObjectId
+        
+        stock = await db.stocks.find_one({"_id": ObjectId(stock_id)})
+        if not stock:
+            raise HTTPException(status_code=404, detail="Stock not found")
+        
+        # Check if payment schedule exists, if not generate it
+        if "payment_schedule" not in stock:
+            payment_schedule = generate_payment_schedule(stock)
+            await db.stocks.update_one(
+                {"_id": ObjectId(stock_id)},
+                {"$set": {"payment_schedule": payment_schedule}}
+            )
+        else:
+            payment_schedule = stock["payment_schedule"]
+        
+        return {
+            "stock_id": str(stock["_id"]),
+            "stock_name": stock["stock_name"],
+            "payments": payment_schedule
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching payment schedule: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.put("/stocks/{stock_id}/payments/{payment_number}/mark-paid")
+async def mark_payment_paid(stock_id: str, payment_number: int, investor_user_id: Optional[int] = None):
+    """Mark a payment as paid (optionally for specific investor)"""
+    try:
+        from bson import ObjectId
+        
+        stock = await db.stocks.find_one({"_id": ObjectId(stock_id)})
+        if not stock:
+            raise HTTPException(status_code=404, detail="Stock not found")
+        
+        payment_schedule = stock.get("payment_schedule", [])
+        payment_index = payment_number - 1
+        
+        if payment_index >= len(payment_schedule):
+            raise HTTPException(status_code=404, detail="Payment not found")
+        
+        payment = payment_schedule[payment_index]
+        
+        if investor_user_id:
+            # Mark specific investor payment as paid
+            for inv_payment in payment["investor_payments"]:
+                if inv_payment["user_id"] == investor_user_id:
+                    inv_payment["paid"] = True
+                    break
+            
+            # Check if all investors paid for this payment
+            all_paid = all(inv["paid"] for inv in payment["investor_payments"])
+            if all_paid:
+                payment["paid"] = True
+                payment["paid_date"] = datetime.utcnow().isoformat()
+        else:
+            # Mark entire payment as paid
+            payment["paid"] = True
+            payment["paid_date"] = datetime.utcnow().isoformat()
+            for inv_payment in payment["investor_payments"]:
+                inv_payment["paid"] = True
+        
+        # Update payment schedule
+        await db.stocks.update_one(
+            {"_id": ObjectId(stock_id)},
+            {"$set": {"payment_schedule": payment_schedule}}
+        )
+        
+        # Recalculate payouts_received
+        payouts_received = sum(1 for p in payment_schedule if p["paid"])
+        await db.stocks.update_one(
+            {"_id": ObjectId(stock_id)},
+            {"$set": {"payouts_received": payouts_received}}
+        )
+        
+        logger.info(f"Marked payment {payment_number} as paid for stock {stock_id}")
+        return {"success": True, "payouts_received": payouts_received}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error marking payment as paid: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/stocks/{stock_id}/payments/check-events")
+async def check_events_for_payments(stock_id: str):
+    """Check Torn events API to auto-detect payments"""
+    try:
+        from bson import ObjectId
+        
+        stock = await db.stocks.find_one({"_id": ObjectId(stock_id)})
+        if not stock:
+            raise HTTPException(status_code=404, detail="Stock not found")
+        
+        # Fetch user events from Torn API
+        events_data = await fetch_torn_api("user", "events")
+        events = events_data.get("events", {})
+        
+        payment_schedule = stock.get("payment_schedule", [])
+        updates_made = 0
+        
+        # Check each unpaid payment
+        for payment in payment_schedule:
+            if payment["paid"]:
+                continue
+            
+            payment_date = parser.parse(payment["due_date"]).date()
+            
+            # Check each investor payment
+            for inv_payment in payment["investor_payments"]:
+                if inv_payment["paid"]:
+                    continue
+                
+                user_id = inv_payment["user_id"]
+                item_id = inv_payment.get("item_id")
+                
+                if not item_id:
+                    continue
+                
+                # Search events for trades from this user with this item
+                for event_id, event in events.items():
+                    event_timestamp = event.get("timestamp", 0)
+                    event_date = datetime.fromtimestamp(event_timestamp).date()
+                    
+                    # Check if event is a trade and matches criteria
+                    if event.get("event") and "traded" in event["event"].lower():
+                        # Simple matching: check if user ID is in the event text
+                        if str(user_id) in str(event.get("event", "")):
+                            # Mark as paid
+                            inv_payment["paid"] = True
+                            inv_payment["detected_event_id"] = event_id
+                            updates_made += 1
+                            logger.info(f"Auto-detected payment from user {user_id} in event {event_id}")
+                            break
+            
+            # Check if all investors paid for this payment
+            all_paid = all(inv["paid"] for inv in payment["investor_payments"])
+            if all_paid and not payment["paid"]:
+                payment["paid"] = True
+                payment["paid_date"] = datetime.utcnow().isoformat()
+                payment["log_entry"] = "Auto-detected from events"
+        
+        # Update payment schedule if changes were made
+        if updates_made > 0:
+            await db.stocks.update_one(
+                {"_id": ObjectId(stock_id)},
+                {"$set": {"payment_schedule": payment_schedule}}
+            )
+            
+            # Recalculate payouts_received
+            payouts_received = sum(1 for p in payment_schedule if p["paid"])
+            await db.stocks.update_one(
+                {"_id": ObjectId(stock_id)},
+                {"$set": {"payouts_received": payouts_received}}
+            )
+        
+        return {
+            "success": True,
+            "updates_made": updates_made,
+            "message": f"Detected {updates_made} payment(s) from events"
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error checking events: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Include the router in the main app
 app.include_router(api_router)
 
