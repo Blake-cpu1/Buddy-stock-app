@@ -67,6 +67,7 @@ class StockCreate(BaseModel):
     payout_value: int
     blank_payment: int
     investors: list[InvestorSplit]
+    payouts_received: int = 0  # Track how many payouts have been received
 
 class StockUpdate(BaseModel):
     stock_name: Optional[str] = None
