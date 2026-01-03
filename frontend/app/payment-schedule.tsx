@@ -200,32 +200,47 @@ export default function PaymentSchedule() {
               <View style={styles.investorsSection}>
                 <Text style={styles.investorsTitle}>Investors:</Text>
                 {payment.investor_payments.map((inv, idx) => (
-                  <View key={idx} style={styles.investorRow}>
-                    <View style={styles.investorInfo}>
-                      <Text style={styles.investorName}>
-                        {inv.user_name} ({inv.split_percentage}%)
-                      </Text>
-                      <Text style={styles.investorAmount}>
-                        {formatMoney(inv.amount)}
-                        {inv.item_name && ` - ${inv.item_name}`}
-                      </Text>
-                    </View>
-                    <View style={styles.investorStatus}>
-                      {inv.paid ? (
-                        <View style={styles.paidStatusContainer}>
-                          {inv.detected_log_id && (
-                            <Ionicons name="flash" size={16} color="#ffc107" style={styles.autoDetectedIcon} />
-                          )}
+                  <View key={idx} style={styles.investorRowContainer}>
+                    <View style={styles.investorRow}>
+                      <View style={styles.investorInfo}>
+                        <Text style={styles.investorName}>
+                          {inv.user_name} ({inv.split_percentage}%)
+                        </Text>
+                        <Text style={styles.investorAmount}>
+                          {formatMoney(inv.amount)}
+                          {inv.item_name && ` - ${inv.item_name}`}
+                        </Text>
+                      </View>
+                      <View style={styles.investorStatus}>
+                        {inv.detected_log_id && (
+                          <Ionicons name="flash" size={16} color="#ffc107" style={styles.autoDetectedIcon} />
+                        )}
+                        {inv.paid ? (
                           <Ionicons name="checkmark-circle" size={20} color="#4caf50" />
-                        </View>
-                      ) : (
-                        <TouchableOpacity
-                          onPress={() => handleMarkPaid(payment.payment_number, inv.user_id)}
-                        >
-                          <Ionicons name="ellipse-outline" size={20} color="#888" />
-                        </TouchableOpacity>
-                      )}
+                        ) : (
+                          <TouchableOpacity
+                            onPress={() => handleMarkPaid(payment.payment_number, inv.user_id)}
+                          >
+                            <Ionicons name="ellipse-outline" size={20} color="#888" />
+                          </TouchableOpacity>
+                        )}
+                      </View>
                     </View>
+                    {/* Show detection status */}
+                    {inv.detection_status === 'found' && inv.detected_log_text && (
+                      <View style={styles.detectionInfo}>
+                        <Ionicons name="flash" size={14} color="#ffc107" />
+                        <Text style={styles.detectionText}>
+                          {inv.detected_log_text} ({inv.detected_date})
+                        </Text>
+                      </View>
+                    )}
+                    {inv.detection_status === 'no_log_found' && (
+                      <View style={styles.detectionInfo}>
+                        <Ionicons name="alert-circle-outline" size={14} color="#888" />
+                        <Text style={styles.noLogText}>No log found within ±24hrs of due date</Text>
+                      </View>
+                    )}
                   </View>
                 ))}
               </View>
