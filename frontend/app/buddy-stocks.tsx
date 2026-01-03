@@ -655,6 +655,90 @@ const styles = StyleSheet.create({
   listContainer: {
     padding: 20,
   },
+  overviewCard: {
+    backgroundColor: '#1a2e1a',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#2d4a2d',
+  },
+  overviewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2d4a2d',
+  },
+  overviewTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginLeft: 10,
+  },
+  overviewGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 16,
+  },
+  overviewItem: {
+    width: '50%',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  overviewLabel: {
+    fontSize: 12,
+    color: '#888',
+    marginBottom: 4,
+  },
+  overviewValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  overviewValueCost: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#f44336',
+  },
+  overviewValueProfit: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#4caf50',
+  },
+  overviewFooter: {
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#2d4a2d',
+  },
+  overviewFooterItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  overviewFooterLabel: {
+    fontSize: 13,
+    color: '#888',
+    marginLeft: 8,
+    marginRight: 4,
+  },
+  overviewFooterValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  overviewFooterValueMuted: {
+    fontSize: 13,
+    color: '#4caf50',
+    fontStyle: 'italic',
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#888',
+    marginBottom: 16,
+  },
   stockCard: {
     backgroundColor: '#1a1a1a',
     borderRadius: 12,
