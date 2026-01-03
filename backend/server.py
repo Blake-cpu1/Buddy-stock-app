@@ -446,7 +446,8 @@ async def create_stock(stock: StockCreate):
         investors_with_names = []
         for inv in stock.investors:
             try:
-                user_data = await fetch_torn_api("user", f"basic&id={inv.user_id}")
+                # Use user/{id} endpoint to get correct user info
+                user_data = await fetch_torn_api(f"user/{inv.user_id}", "basic")
                 user_name = user_data.get("name", f"User {inv.user_id}")
             except:
                 user_name = f"User {inv.user_id}"
