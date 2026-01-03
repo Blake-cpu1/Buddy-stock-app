@@ -657,10 +657,19 @@ def generate_payment_schedule(stock: dict) -> list:
     from dateutil import parser
     from datetime import timedelta
     
-    start_date = parser.parse(stock["start_date"]).date()
+    # Parse start date properly
+    start_date_str = stock["start_date"]
+    try:
+        # Handle YYYY-MM-DD format
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+    except:
+        # Fallback to dateutil parser
+        start_date = parser.parse(start_date_str).date()
+    
     payments = []
     
     for payment_num in range(1, stock["total_payouts"] + 1):
+        # Calculate due date: start_date + (payment_num * days_per_payout)
         due_date = start_date + timedelta(days=payment_num * stock["days_per_payout"])
         
         # Calculate amount per investor based on payout value and splits
