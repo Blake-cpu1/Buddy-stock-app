@@ -50,6 +50,22 @@ class APIKeyResponse(BaseModel):
     key_preview: Optional[str] = None
     is_disabled: Optional[bool] = False
 
+class BuddyStockCreate(BaseModel):
+    user_id: int
+    item_name: str
+    interval_days: int
+
+class BuddyStockResponse(BaseModel):
+    id: str
+    user_id: int
+    user_name: str
+    item_name: str
+    interval_days: int
+    last_received: Optional[datetime] = None
+    next_due: Optional[datetime] = None
+    days_until_due: Optional[int] = None
+    is_overdue: bool = False
+
 # Helper functions for rate limiting and caching
 def check_rate_limit() -> bool:
     """Check if we're within rate limits (100 requests per minute)"""
