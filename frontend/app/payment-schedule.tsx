@@ -91,6 +91,61 @@ export default function PaymentSchedule() {
     fetchPayments();
   }, []);
 
+  // Check if a date is today
+  const isToday = (dateStr: string) => {
+    const today = new Date();
+    const dueDate = new Date(dateStr);
+    return today.toDateString() === dueDate.toDateString();
+  };
+
+  // Open send money modal
+  const openSendMoneyModal = (payment: Payment, inv: InvestorPayment) => {
+    setSendMoneyModal({
+      visible: true,
+      userId: inv.user_id,
+      userName: inv.user_name,
+      amount: inv.amount,
+      paymentNumber: payment.payment_number,
+    });
+  };
+
+  // Copy amount to clipboard and open Torn profile
+  const handleCopyAndOpenProfile = async () => {
+    const amountStr = sendMoneyModal.amount.toString();
+    await Clipboard.setStringAsync(amountStr);
+    
+    // Open Torn profile in browser/TornPDA
+    const profileUrl = `https://www.torn.com/profiles.php?XID=${sendMoneyModal.userId}`;
+    Linking.openURL(profileUrl);
+    
+    // Close modal
+    setSendMoneyModal({ ...sendMoneyModal, visible: false });
+    
+    if (Platform.OS === 'web') {
+      alert(`Copied $${amountStr} to clipboard! Opening ${sendMoneyModal.userName}'s profile...`);
+    } else {
+      Alert.alert('Copied!', `$${amountStr} copied to clipboard. Opening ${sendMoneyModal.userName}'s profile...`);
+    }
+  };
+
+  // Confirm and mark payment
+  const handleConfirmPayment = async () => {
+    try {
+      const params = `?investor_user_id=${sendMoneyModal.userId}`;
+      await axios.put(`${API_URL}/api/stocks/${stockId}/payments/${sendMoneyModal.paymentNumber}/mark-paid${params}`);
+      setSendMoneyModal({ ...sendMoneyModal, visible: false });
+      fetchPayments();
+      
+      if (Platform.OS === 'web') {
+        alert('Payment marked as paid!');
+      } else {
+        Alert.alert('Success', 'Payment marked as paid!');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to mark payment');
+    }
+  };
+
   const handleMarkPaid = async (paymentNumber: number, investorUserId?: number) => {
     try {
       const params = investorUserId ? `?investor_user_id=${investorUserId}` : '';
