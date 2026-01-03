@@ -377,6 +377,9 @@ export default function BuddyStocks() {
                     <Text style={styles.moneyValue}>
                       {stock.next_payout_due ? formatDateUK(stock.next_payout_due) : 'All paid'}
                     </Text>
+                    <Text style={[styles.roiText, stock.annualized_roi >= 0 ? styles.roiPositive : styles.roiNegative]}>
+                      ROI: {stock.annualized_roi >= 0 ? '+' : ''}{stock.annualized_roi}%
+                    </Text>
                   </View>
                   <View style={styles.moneyItem}>
                     <Text style={styles.moneyLabel}>Total Received</Text>
