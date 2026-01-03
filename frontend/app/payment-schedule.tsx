@@ -56,6 +56,7 @@ export default function PaymentSchedule() {
   const stockName = params.stockName as string;
   
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [blankPayment, setBlankPayment] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [detectingEvents, setDetectingEvents] = useState(false);
@@ -77,6 +78,7 @@ export default function PaymentSchedule() {
     try {
       const response = await axios.get(`${API_URL}/api/stocks/${stockId}/payments`);
       setPayments(response.data.payments);
+      setBlankPayment(response.data.blank_payment || 0);
     } catch (error: any) {
       console.error('Error fetching payments:', error);
       Alert.alert('Error', 'Failed to load payment schedule');
