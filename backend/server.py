@@ -753,7 +753,7 @@ async def get_payment_schedule(stock_id: str, regenerate: bool = False):
 
 @api_router.put("/stocks/{stock_id}/payments/{payment_number}/mark-paid")
 async def mark_payment_paid(stock_id: str, payment_number: int, investor_user_id: Optional[int] = None):
-    """Mark a payment as paid (optionally for specific investor)"""
+    """Toggle payment paid status (mark/unmark)"""
     try:
         from bson import ObjectId
         
@@ -770,10 +770,11 @@ async def mark_payment_paid(stock_id: str, payment_number: int, investor_user_id
         payment = payment_schedule[payment_index]
         
         if investor_user_id:
-            # Mark specific investor payment as paid
+            # Toggle specific investor payment
             for inv_payment in payment["investor_payments"]:
                 if inv_payment["user_id"] == investor_user_id:
-                    inv_payment["paid"] = True
+                    # Toggle the paid status
+                    inv_payment["paid"] = not inv_payment.get("paid", False)
                     break
             
             # Check if all investors paid for this payment
@@ -781,12 +782,23 @@ async def mark_payment_paid(stock_id: str, payment_number: int, investor_user_id
             if all_paid:
                 payment["paid"] = True
                 payment["paid_date"] = datetime.utcnow().isoformat()
+            else:
+                payment["paid"] = False
+                payment["paid_date"] = None
         else:
-            # Mark entire payment as paid
-            payment["paid"] = True
-            payment["paid_date"] = datetime.utcnow().isoformat()
+            # Toggle entire payment
+            current_status = payment.get("paid", False)
+            new_status = not current_status
+            
+            payment["paid"] = new_status
+            if new_status:
+                payment["paid_date"] = datetime.utcnow().isoformat()
+            else:
+                payment["paid_date"] = None
+            
+            # Update all investor payments to match
             for inv_payment in payment["investor_payments"]:
-                inv_payment["paid"] = True
+                inv_payment["paid"] = new_status
         
         # Update payment schedule
         await db.stocks.update_one(
@@ -801,13 +813,14 @@ async def mark_payment_paid(stock_id: str, payment_number: int, investor_user_id
             {"$set": {"payouts_received": payouts_received}}
         )
         
-        logger.info(f"Marked payment {payment_number} as paid for stock {stock_id}")
-        return {"success": True, "payouts_received": payouts_received}
+        action = "marked" if payment.get("paid") else "unmarked"
+        logger.info(f"{action} payment {payment_number} for stock {stock_id}")
+        return {"success": True, "payouts_received": payouts_received, "paid": payment.get("paid")}
     
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error marking payment as paid: {e}")
+        logger.error(f"Error toggling payment status: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/stocks/{stock_id}/payments/check-events")
