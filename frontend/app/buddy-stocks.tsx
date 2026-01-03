@@ -451,19 +451,23 @@ export default function BuddyStocks() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Item Name (for auto-detect)</Text>
+                <Text style={styles.label}>Item Names (comma separated for auto-detect)</Text>
                 <TextInput 
                   style={styles.input} 
-                  value={itemName} 
-                  onChangeText={setItemName}
-                  onBlur={() => searchItemMarketValue(itemName)}
-                  placeholder="e.g., Drug Pack" 
+                  value={itemNames} 
+                  onChangeText={setItemNames}
+                  onBlur={() => searchItemMarketValue(itemNames)}
+                  placeholder="e.g., Drug Pack, Box of Medical Supplies" 
                   placeholderTextColor="#666" 
                 />
-                {itemValue !== null && (
-                  <Text style={styles.marketValueText}>
-                    Market Value: {formatMoney(itemValue)}
-                  </Text>
+                {itemsData.length > 0 && (
+                  <View style={styles.itemsListContainer}>
+                    {itemsData.map((item, idx) => (
+                      <Text key={idx} style={styles.marketValueText}>
+                        ✓ {item.name}: {formatMoney(item.value)}
+                      </Text>
+                    ))}
+                  </View>
                 )}
               </View>
 
