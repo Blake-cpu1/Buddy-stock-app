@@ -9,11 +9,14 @@ import {
   RefreshControl,
   Alert,
   Platform,
+  Modal,
+  Linking,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import axios from 'axios';
 import Constants from 'expo-constants';
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 
 const API_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -39,6 +42,14 @@ interface Payment {
   log_entry?: string;
 }
 
+interface SendMoneyModalData {
+  visible: boolean;
+  userId: number;
+  userName: string;
+  amount: number;
+  paymentNumber: number;
+}
+
 export default function PaymentSchedule() {
   const params = useLocalSearchParams();
   const stockId = params.stockId as string;
@@ -48,6 +59,13 @@ export default function PaymentSchedule() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [detectingEvents, setDetectingEvents] = useState(false);
+  const [sendMoneyModal, setSendMoneyModal] = useState<SendMoneyModalData>({
+    visible: false,
+    userId: 0,
+    userName: '',
+    amount: 0,
+    paymentNumber: 0,
+  });
   const [showPaidPayments, setShowPaidPayments] = useState(false);
   const router = useRouter();
 
