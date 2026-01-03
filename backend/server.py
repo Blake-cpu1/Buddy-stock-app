@@ -61,13 +61,13 @@ class InvestorSplit(BaseModel):
 class StockCreate(BaseModel):
     stock_name: str
     start_date: str  # YYYY-MM-DD format
-    investment_length_days: int
     days_per_payout: int
     total_cost: int
     payout_value: int
     blank_payment: int
     investors: list[InvestorSplit]
     payouts_received: int = 0  # Track how many payouts have been received
+    max_payouts: int = 100  # Default to 100 payouts for "ongoing" investments
 
 class StockUpdate(BaseModel):
     stock_name: Optional[str] = None
