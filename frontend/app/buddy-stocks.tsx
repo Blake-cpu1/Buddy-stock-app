@@ -123,33 +123,19 @@ export default function BuddyStocks() {
 
   const handleAddOrEditStock = async () => {
     // Validate form
-    if (!stockName || !startDate || !daysPerPayout || !totalCost || !payoutValue || !blankPayment) {
+    if (!stockName || !buddyId || !startDate || !daysPerPayout || !totalCost || !payoutValue || !blankPayment) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
-    // Validate investor data
-    const validInvestors = investorIds.filter((id, idx) => id && investorSplits[idx]);
-    if (validInvestors.length === 0) {
-      Alert.alert('Error', 'Please add at least one investor');
-      return;
-    }
-
-    // Build investors array
-    const investors = validInvestors.map((id, idx) => ({
-      user_id: parseInt(id),
-      split_percentage: parseFloat(investorSplits[idx]),
-      item_name: investorItems[idx] || undefined,
-      item_id: investorItemIds[idx] || undefined,
-      market_value: investorItemValues[idx] || undefined,
-    }));
-
-    // Validate splits total to 100
-    const totalSplit = investors.reduce((sum, inv) => sum + inv.split_percentage, 0);
-    if (Math.abs(totalSplit - 100) > 0.01) {
-      Alert.alert('Error', `Investor splits must total 100%, currently ${totalSplit.toFixed(1)}%`);
-      return;
-    }
+    // Build single investor (buddy) with 100% split
+    const investors = [{
+      user_id: parseInt(buddyId),
+      split_percentage: 100,
+      item_name: itemName || undefined,
+      item_id: itemId || undefined,
+      market_value: itemValue || undefined,
+    }];
 
     setSubmitting(true);
     try {
@@ -160,7 +146,6 @@ export default function BuddyStocks() {
         total_cost: parseInt(totalCost),
         payout_value: parseInt(payoutValue),
         blank_payment: parseInt(blankPayment),
-        payouts_received: parseInt(payoutsReceived),
         investors,
       };
 
