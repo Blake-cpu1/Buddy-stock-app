@@ -501,7 +501,12 @@ async def get_stocks():
         for stock in stocks:
             stock["id"] = str(stock.pop("_id"))
             
-            # Calculate Blake Total (total profit)
+            # Calculate Total Received (payouts_received × payout_value)
+            payouts_received = stock.get("payouts_received", 0)
+            total_received = stock["payout_value"] * payouts_received
+            stock["total_received"] = total_received
+            
+            # Keep blake_total for backwards compatibility (total possible profit)
             total_profit = (stock["payout_value"] * stock["total_payouts"]) - stock["total_cost"]
             stock["blake_total"] = total_profit
             
