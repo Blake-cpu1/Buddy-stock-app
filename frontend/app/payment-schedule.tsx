@@ -145,10 +145,10 @@ export default function PaymentSchedule() {
   const paidPayments = payments.filter(p => p.paid);
   const unpaidPayments = payments.filter(p => !p.paid);
   
-  // Sort unpaid by date (earliest first)
-  const sortedUnpaidPayments = [...unpaidPayments].sort((a, b) => 
-    new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
-  );
+  // Sort unpaid by date (earliest first) and only show next 4
+  const sortedUnpaidPayments = [...unpaidPayments]
+    .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
+    .slice(0, 4);
 
   if (loading) {
     return (
