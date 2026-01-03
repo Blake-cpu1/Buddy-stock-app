@@ -462,14 +462,13 @@ async def create_stock(stock: StockCreate):
             
             investors_with_names.append(investor_data)
         
-        # Calculate total payouts
-        total_payouts = stock.investment_length_days // stock.days_per_payout
+        # Calculate total payouts (use max_payouts for ongoing investments)
+        total_payouts = stock.get("max_payouts", 100)
         
         # Create stock document
         stock_doc = {
             "stock_name": stock.stock_name,
             "start_date": stock.start_date,
-            "investment_length_days": stock.investment_length_days,
             "days_per_payout": stock.days_per_payout,
             "total_cost": stock.total_cost,
             "payout_value": stock.payout_value,
@@ -477,6 +476,7 @@ async def create_stock(stock: StockCreate):
             "investors": investors_with_names,
             "total_payouts": total_payouts,
             "payouts_received": stock.payouts_received,
+            "max_payouts": stock.max_payouts,
             "created_at": datetime.utcnow()
         }
         
