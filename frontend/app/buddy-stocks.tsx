@@ -132,13 +132,15 @@ export default function BuddyStocks() {
       return;
     }
 
-    // Build single investor (buddy) with 100% split
+    // Build single investor (buddy) with 100% split and multiple items
     const investors = [{
       user_id: parseInt(buddyId),
       split_percentage: 100,
-      item_name: itemName || undefined,
-      item_id: itemId || undefined,
-      market_value: itemValue || undefined,
+      items: itemsData.length > 0 ? itemsData : undefined,
+      // Keep legacy fields for backwards compatibility
+      item_name: itemsData.length > 0 ? itemsData.map(i => i.name).join(', ') : undefined,
+      item_id: itemsData.length > 0 ? itemsData[0].id : undefined,
+      market_value: itemsData.length > 0 ? itemsData.reduce((sum, i) => sum + i.value, 0) : undefined,
     }];
 
     setSubmitting(true);
