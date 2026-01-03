@@ -54,6 +54,7 @@ export default function BuddyStocks() {
   const [modalVisible, setModalVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [editingStock, setEditingStock] = useState<Stock | null>(null);
+  const [editMode, setEditMode] = useState(false);
   
   // Form fields
   const [stockName, setStockName] = useState('');
