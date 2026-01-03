@@ -210,7 +210,12 @@ export default function PaymentSchedule() {
                     </View>
                     <View style={styles.investorStatus}>
                       {inv.paid ? (
-                        <Ionicons name="checkmark-circle" size={20} color="#4caf50" />
+                        <View style={styles.paidStatusContainer}>
+                          {inv.detected_log_id && (
+                            <Ionicons name="flash" size={16} color="#ffc107" style={styles.autoDetectedIcon} />
+                          )}
+                          <Ionicons name="checkmark-circle" size={20} color="#4caf50" />
+                        </View>
                       ) : (
                         <TouchableOpacity
                           onPress={() => handleMarkPaid(payment.payment_number, inv.user_id)}
