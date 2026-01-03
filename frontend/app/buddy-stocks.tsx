@@ -383,6 +383,18 @@ export default function BuddyStocks() {
                     </View>
                   ))}
                 </View>
+
+                <TouchableOpacity
+                  style={styles.viewPaymentsButton}
+                  onPress={() => router.push({
+                    pathname: '/payment-schedule',
+                    params: { stockId: stock.id, stockName: stock.stock_name }
+                  })}
+                >
+                  <Ionicons name="calendar-outline" size={20} color="#fff" />
+                  <Text style={styles.viewPaymentsText}>View Payment Schedule</Text>
+                  <Ionicons name="chevron-forward" size={20} color="#888" />
+                </TouchableOpacity>
               </View>
             ))}
           </View>
