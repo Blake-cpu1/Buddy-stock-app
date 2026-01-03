@@ -221,6 +221,38 @@ async def get_status():
         "cache_duration": CACHE_DURATION
     }
 
+@api_router.get("/items/search")
+async def search_item(name: str):
+    """Search for item by name and get market value"""
+    try:
+        # Fetch all items from Torn
+        items_data = await fetch_torn_api("torn", "items")
+        
+        # Search for item by name (case-insensitive)
+        search_name = name.lower()
+        matched_item = None
+        
+        for item_id, item_info in items_data.get("items", {}).items():
+            if search_name in item_info.get("name", "").lower():
+                matched_item = {
+                    "id": int(item_id),
+                    "name": item_info.get("name"),
+                    "market_value": item_info.get("market_value", 0),
+                    "description": item_info.get("description", "")
+                }
+                break
+        
+        if not matched_item:
+            raise HTTPException(status_code=404, detail=f"Item '{name}' not found")
+        
+        return matched_item
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error searching item: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @api_router.post("/settings/api-key")
 async def update_api_key(data: APIKeyUpdate):
     """Update the Torn API key with validation"""
