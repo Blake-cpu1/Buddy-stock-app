@@ -63,9 +63,8 @@ export default function BuddyStocks() {
   const [totalCost, setTotalCost] = useState('');
   const [payoutValue, setPayoutValue] = useState('');
   const [blankPayment, setBlankPayment] = useState('');
-  const [itemName, setItemName] = useState('');
-  const [itemId, setItemId] = useState<number | null>(null);
-  const [itemValue, setItemValue] = useState<number | null>(null);
+  const [itemNames, setItemNames] = useState('');  // Comma-separated item names
+  const [itemsData, setItemsData] = useState<Array<{name: string, id: number, value: number}>>([]);
   
   const router = useRouter();
 
