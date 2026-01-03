@@ -197,7 +197,7 @@ export default function PaymentSchedule() {
         {/* Upcoming Payments Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            <Ionicons name="time-outline" size={18} color="#4caf50" /> Upcoming Payments ({unpaidPayments.length})
+            <Ionicons name="time-outline" size={18} color="#4caf50" /> Next {sortedUnpaidPayments.length} Payment{sortedUnpaidPayments.length !== 1 ? 's' : ''}
           </Text>
           
           {sortedUnpaidPayments.length === 0 ? (
