@@ -250,22 +250,6 @@ export default function BuddyStocks() {
     }
   };
 
-  const addInvestorRow = () => {
-    setInvestorIds([...investorIds, '']);
-    setInvestorSplits([...investorSplits, '']);
-    setInvestorItems([...investorItems, '']);
-    setInvestorItemValues([...investorItemValues, null]);
-    setInvestorItemIds([...investorItemIds, null]);
-  };
-
-  const removeInvestorRow = (index: number) => {
-    setInvestorIds(investorIds.filter((_, i) => i !== index));
-    setInvestorSplits(investorSplits.filter((_, i) => i !== index));
-    setInvestorItems(investorItems.filter((_, i) => i !== index));
-    setInvestorItemValues(investorItemValues.filter((_, i) => i !== index));
-    setInvestorItemIds(investorItemIds.filter((_, i) => i !== index));
-  };
-
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
