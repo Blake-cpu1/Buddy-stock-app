@@ -43,6 +43,7 @@ interface Stock {
   payouts_received: number;
   total_received: number;
   blake_total: number;
+  next_payout_due?: string;
 }
 
 export default function BuddyStocks() {
