@@ -99,7 +99,19 @@ export default function Settings() {
 
       <ScrollView style={styles.scrollView}>
         <View style={styles.content}>
-          {currentKeyPreview && (
+          {isKeyDisabled && (
+            <View style={styles.warningCard}>
+              <View style={styles.warningHeader}>
+                <Ionicons name="warning" size={24} color="#ff9800" />
+                <Text style={styles.warningTitle}>API Key Disabled</Text>
+              </View>
+              <Text style={styles.warningText}>
+                Your API key has been automatically disabled due to errors (invalid, inactive, or paused). Please enter a valid API key below to restore functionality.
+              </Text>
+            </View>
+          )}
+
+          {currentKeyPreview && !isKeyDisabled && (
             <View style={styles.currentKeyCard}>
               <View style={styles.currentKeyHeader}>
                 <Ionicons name="key-outline" size={20} color="#4caf50" />
