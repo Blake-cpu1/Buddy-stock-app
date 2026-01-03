@@ -72,13 +72,13 @@ class StockCreate(BaseModel):
 class StockUpdate(BaseModel):
     stock_name: Optional[str] = None
     start_date: Optional[str] = None
-    investment_length_days: Optional[int] = None
     days_per_payout: Optional[int] = None
     total_cost: Optional[int] = None
     payout_value: Optional[int] = None
     blank_payment: Optional[int] = None
     investors: Optional[list[InvestorSplit]] = None
     payouts_received: Optional[int] = None  # Track received payouts
+    max_payouts: Optional[int] = None  # Maximum payouts for ongoing investments
 
 class PaymentSchedule(BaseModel):
     payment_number: int
