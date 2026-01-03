@@ -990,18 +990,19 @@ async def check_events_for_payments(stock_id: str):
                 if legacy_item_id and legacy_item_id not in item_ids:
                     item_ids.append(legacy_item_id)
                 
-                if not item_id:
+                if not item_ids:
                     inv_payment["detected_log"] = None
                     inv_payment["detection_status"] = "no_item_configured"
                     continue
                 
-                # Find a matching log within the time window
+                # Find a matching log within the time window for ANY of the items
                 found_log = None
                 for log in all_matching_logs:
                     if log["log_id"] in used_log_ids:
                         continue
                     
-                    if log["sender_id"] == user_id and log["item_id"] == item_id:
+                    # Match if sender matches AND item matches any of our tracked items
+                    if log["sender_id"] == user_id and log["item_id"] in item_ids:
                         log_datetime = datetime.fromtimestamp(log["timestamp"])
                         
                         # Check if log is within ±24 hours of due date
