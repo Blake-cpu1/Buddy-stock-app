@@ -441,8 +441,8 @@ export default function BuddyStocks() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Blank Payment (Auto-filled)</Text>
-                <TextInput style={styles.input} value={blankPayment} onChangeText={setBlankPayment} placeholder="Auto-filled from stock name" placeholderTextColor="#666" keyboardType="numeric" />
+                <Text style={styles.label}>Blank Payment</Text>
+                <TextInput style={styles.input} value={blankPayment} onChangeText={setBlankPayment} placeholder="50000" placeholderTextColor="#666" keyboardType="numeric" />
               </View>
 
               <View style={styles.investorsSection}>
