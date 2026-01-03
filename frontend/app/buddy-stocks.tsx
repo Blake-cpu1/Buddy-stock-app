@@ -24,6 +24,9 @@ interface Investor {
   user_id: number;
   user_name?: string;
   split_percentage: number;
+  item_name?: string;
+  item_id?: number;
+  market_value?: number;
 }
 
 interface Stock {
@@ -46,6 +49,7 @@ export default function BuddyStocks() {
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [editingStock, setEditingStock] = useState<Stock | null>(null);
   
   // Form fields
   const [stockName, setStockName] = useState('');
@@ -57,6 +61,9 @@ export default function BuddyStocks() {
   const [blankPayment, setBlankPayment] = useState('');
   const [investorIds, setInvestorIds] = useState<string[]>(['']);
   const [investorSplits, setInvestorSplits] = useState<string[]>(['100']);
+  const [investorItems, setInvestorItems] = useState<string[]>(['']);
+  const [investorItemValues, setInvestorItemValues] = useState<(number | null)[]>([null]);
+  const [investorItemIds, setInvestorItemIds] = useState<(number | null)[]>([null]);
   
   const router = useRouter();
 
@@ -82,7 +89,37 @@ export default function BuddyStocks() {
     fetchStocks();
   }, []);
 
-  const handleAddStock = async () => {
+  const searchItemMarketValue = async (itemName: string, index: number) => {
+    if (!itemName.trim()) {
+      return;
+    }
+
+    try {
+      const response = await axios.get(`${API_URL}/api/items/search`, {
+        params: { name: itemName }
+      });
+      
+      const newValues = [...investorItemValues];
+      const newIds = [...investorItemIds];
+      newValues[index] = response.data.market_value;
+      newIds[index] = response.data.id;
+      setInvestorItemValues(newValues);
+      setInvestorItemIds(newIds);
+    } catch (error: any) {
+      const newValues = [...investorItemValues];
+      const newIds = [...investorItemIds];
+      newValues[index] = null;
+      newIds[index] = null;
+      setInvestorItemValues(newValues);
+      setInvestorItemIds(newIds);
+      
+      if (error.response?.status === 404) {
+        Alert.alert('Item Not Found', `Could not find "${itemName}" in Torn item database`);
+      }
+    }
+  };
+
+  const handleAddOrEditStock = async () => {
     // Validate form
     if (!stockName || !startDate || !investmentLength || !daysPerPayout || !totalCost || !payoutValue || !blankPayment) {
       Alert.alert('Error', 'Please fill in all fields');
@@ -100,6 +137,9 @@ export default function BuddyStocks() {
     const investors = validInvestors.map((id, idx) => ({
       user_id: parseInt(id),
       split_percentage: parseFloat(investorSplits[idx]),
+      item_name: investorItems[idx] || undefined,
+      item_id: investorItemIds[idx] || undefined,
+      market_value: investorItemValues[idx] || undefined,
     }));
 
     // Validate splits total to 100
@@ -111,7 +151,7 @@ export default function BuddyStocks() {
 
     setSubmitting(true);
     try {
-      await axios.post(`${API_URL}/api/stocks`, {
+      const stockData = {
         stock_name: stockName,
         start_date: startDate,
         investment_length_days: parseInt(investmentLength),
@@ -120,14 +160,23 @@ export default function BuddyStocks() {
         payout_value: parseInt(payoutValue),
         blank_payment: parseInt(blankPayment),
         investors,
-      });
+      };
 
-      Alert.alert('Success', 'Stock added successfully!');
+      if (editingStock) {
+        // Update existing stock
+        await axios.put(`${API_URL}/api/stocks/${editingStock.id}`, stockData);
+        Alert.alert('Success', 'Stock updated successfully!');
+      } else {
+        // Create new stock
+        await axios.post(`${API_URL}/api/stocks`, stockData);
+        Alert.alert('Success', 'Stock added successfully!');
+      }
+
       setModalVisible(false);
       resetForm();
       fetchStocks();
     } catch (error: any) {
-      const errorMsg = error.response?.data?.detail || 'Failed to add stock';
+      const errorMsg = error.response?.data?.detail || `Failed to ${editingStock ? 'update' : 'add'} stock`;
       Alert.alert('Error', errorMsg);
     } finally {
       setSubmitting(false);
@@ -144,6 +193,36 @@ export default function BuddyStocks() {
     setBlankPayment('');
     setInvestorIds(['']);
     setInvestorSplits(['100']);
+    setInvestorItems(['']);
+    setInvestorItemValues([null]);
+    setInvestorItemIds([null]);
+    setEditingStock(null);
+  };
+
+  const openEditModal = (stock: Stock) => {
+    setEditingStock(stock);
+    setStockName(stock.stock_name);
+    setStartDate(stock.start_date);
+    setInvestmentLength(stock.investment_length_days.toString());
+    setDaysPerPayout(stock.days_per_payout.toString());
+    setTotalCost(stock.total_cost.toString());
+    setPayoutValue(stock.payout_value.toString());
+    setBlankPayment(stock.blank_payment.toString());
+    
+    // Load investors
+    const ids = stock.investors.map(inv => inv.user_id.toString());
+    const splits = stock.investors.map(inv => inv.split_percentage.toString());
+    const items = stock.investors.map(inv => inv.item_name || '');
+    const values = stock.investors.map(inv => inv.market_value || null);
+    const itemIds = stock.investors.map(inv => inv.item_id || null);
+    
+    setInvestorIds(ids);
+    setInvestorSplits(splits);
+    setInvestorItems(items);
+    setInvestorItemValues(values);
+    setInvestorItemIds(itemIds);
+    
+    setModalVisible(true);
   };
 
   const handleDeleteStock = async (stockId: string, stockName: string) => {
@@ -178,11 +257,17 @@ export default function BuddyStocks() {
   const addInvestorRow = () => {
     setInvestorIds([...investorIds, '']);
     setInvestorSplits([...investorSplits, '']);
+    setInvestorItems([...investorItems, '']);
+    setInvestorItemValues([...investorItemValues, null]);
+    setInvestorItemIds([...investorItemIds, null]);
   };
 
   const removeInvestorRow = (index: number) => {
     setInvestorIds(investorIds.filter((_, i) => i !== index));
     setInvestorSplits(investorSplits.filter((_, i) => i !== index));
+    setInvestorItems(investorItems.filter((_, i) => i !== index));
+    setInvestorItemValues(investorItemValues.filter((_, i) => i !== index));
+    setInvestorItemIds(investorItemIds.filter((_, i) => i !== index));
   };
 
   if (loading) {
@@ -201,7 +286,7 @@ export default function BuddyStocks() {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Stock Investments</Text>
-        <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.addButton}>
+        <TouchableOpacity onPress={() => { resetForm(); setModalVisible(true); }} style={styles.addButton}>
           <Ionicons name="add-circle" size={28} color="#4caf50" />
         </TouchableOpacity>
       </View>
@@ -225,9 +310,14 @@ export default function BuddyStocks() {
               <View key={stock.id} style={styles.stockCard}>
                 <View style={styles.stockHeader}>
                   <Text style={styles.stockName}>{stock.stock_name}</Text>
-                  <TouchableOpacity onPress={() => handleDeleteStock(stock.id, stock.stock_name)}>
-                    <Ionicons name="trash-outline" size={20} color="#f44336" />
-                  </TouchableOpacity>
+                  <View style={styles.stockActions}>
+                    <TouchableOpacity onPress={() => openEditModal(stock)} style={styles.actionIcon}>
+                      <Ionicons name="create-outline" size={22} color="#2196f3" />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleDeleteStock(stock.id, stock.stock_name)} style={styles.actionIcon}>
+                      <Ionicons name="trash-outline" size={20} color="#f44336" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
                 <View style={styles.stockGrid}>
@@ -271,9 +361,16 @@ export default function BuddyStocks() {
                 <View style={styles.investorSection}>
                   <Text style={styles.investorTitle}>Investors:</Text>
                   {stock.investors.map((inv, idx) => (
-                    <Text key={idx} style={styles.investorText}>
-                      {inv.user_name || `User ${inv.user_id}`} ({inv.split_percentage}%)
-                    </Text>
+                    <View key={idx}>
+                      <Text style={styles.investorText}>
+                        {inv.user_name || `User ${inv.user_id}`} ({inv.split_percentage}%)
+                      </Text>
+                      {inv.item_name && (
+                        <Text style={styles.itemText}>
+                          → {inv.item_name} {inv.market_value && `(${formatMoney(inv.market_value)})`}
+                        </Text>
+                      )}
+                    </View>
                   ))}
                 </View>
               </View>
@@ -284,13 +381,13 @@ export default function BuddyStocks() {
         <View style={{ height: 20 }} />
       </ScrollView>
 
-      {/* Add Stock Modal */}
+      {/* Add/Edit Stock Modal */}
       <Modal visible={modalVisible} animationType="slide" transparent={true} onRequestClose={() => setModalVisible(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Stock Investment</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <Text style={styles.modalTitle}>{editingStock ? 'Edit' : 'Add'} Stock Investment</Text>
+              <TouchableOpacity onPress={() => { setModalVisible(false); resetForm(); }}>
                 <Ionicons name="close" size={28} color="#fff" />
               </TouchableOpacity>
             </View>
@@ -342,35 +439,76 @@ export default function BuddyStocks() {
                 </View>
 
                 {investorIds.map((id, idx) => (
-                  <View key={idx} style={styles.investorRow}>
-                    <TextInput style={[styles.input, styles.investorIdInput]} value={id} onChangeText={(text) => {
-                      const newIds = [...investorIds];
-                      newIds[idx] = text;
-                      setInvestorIds(newIds);
-                    }} placeholder="User ID" placeholderTextColor="#666" keyboardType="numeric" />
-                    
-                    <TextInput style={[styles.input, styles.investorSplitInput]} value={investorSplits[idx]} onChangeText={(text) => {
-                      const newSplits = [...investorSplits];
-                      newSplits[idx] = text;
-                      setInvestorSplits(newSplits);
-                    }} placeholder="%" placeholderTextColor="#666" keyboardType="numeric" />
-                    
-                    {investorIds.length > 1 && (
-                      <TouchableOpacity onPress={() => removeInvestorRow(idx)}>
-                        <Ionicons name="remove-circle-outline" size={24} color="#f44336" />
-                      </TouchableOpacity>
+                  <View key={idx} style={styles.investorRowContainer}>
+                    <View style={styles.investorRow}>
+                      <TextInput 
+                        style={[styles.input, styles.investorIdInput]} 
+                        value={id} 
+                        onChangeText={(text) => {
+                          const newIds = [...investorIds];
+                          newIds[idx] = text;
+                          setInvestorIds(newIds);
+                        }} 
+                        placeholder="User ID" 
+                        placeholderTextColor="#666" 
+                        keyboardType="numeric" 
+                      />
+                      
+                      <TextInput 
+                        style={[styles.input, styles.investorSplitInput]} 
+                        value={investorSplits[idx]} 
+                        onChangeText={(text) => {
+                          const newSplits = [...investorSplits];
+                          newSplits[idx] = text;
+                          setInvestorSplits(newSplits);
+                        }} 
+                        placeholder="%" 
+                        placeholderTextColor="#666" 
+                        keyboardType="numeric" 
+                      />
+                      
+                      {investorIds.length > 1 && (
+                        <TouchableOpacity onPress={() => removeInvestorRow(idx)}>
+                          <Ionicons name="remove-circle-outline" size={24} color="#f44336" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    <View style={styles.itemRow}>
+                      <TextInput 
+                        style={[styles.input, styles.itemInput]} 
+                        value={investorItems[idx]} 
+                        onChangeText={(text) => {
+                          const newItems = [...investorItems];
+                          newItems[idx] = text;
+                          setInvestorItems(newItems);
+                        }}
+                        onBlur={() => searchItemMarketValue(investorItems[idx], idx)}
+                        placeholder="Item name (e.g., Drug Pack)" 
+                        placeholderTextColor="#666" 
+                      />
+                    </View>
+
+                    {investorItemValues[idx] !== null && (
+                      <Text style={styles.marketValueText}>
+                        Market Value: {formatMoney(investorItemValues[idx]!)}
+                      </Text>
                     )}
                   </View>
                 ))}
               </View>
 
-              <TouchableOpacity style={[styles.submitButton, submitting && styles.submitButtonDisabled]} onPress={handleAddStock} disabled={submitting}>
+              <TouchableOpacity 
+                style={[styles.submitButton, submitting && styles.submitButtonDisabled]} 
+                onPress={handleAddOrEditStock} 
+                disabled={submitting}
+              >
                 {submitting ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
                   <>
-                    <Ionicons name="add-circle-outline" size={20} color="#fff" />
-                    <Text style={styles.submitButtonText}>Add Stock</Text>
+                    <Ionicons name={editingStock ? "checkmark-circle-outline" : "add-circle-outline"} size={20} color="#fff" />
+                    <Text style={styles.submitButtonText}>{editingStock ? 'Update' : 'Add'} Stock</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -473,6 +611,14 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#fff',
+    flex: 1,
+  },
+  stockActions: {
+    flexDirection: 'row',
+  },
+  actionIcon: {
+    padding: 4,
+    marginLeft: 8,
   },
   stockGrid: {
     flexDirection: 'row',
@@ -531,16 +677,22 @@ const styles = StyleSheet.create({
   investorTitle: {
     fontSize: 14,
     color: '#888',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   investorText: {
     fontSize: 14,
     color: '#fff',
-    marginBottom: 2,
+    marginBottom: 4,
+  },
+  itemText: {
+    fontSize: 13,
+    color: '#4caf50',
+    marginLeft: 16,
+    marginBottom: 4,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
     justifyContent: 'flex-end',
   },
   modalContent: {
@@ -608,6 +760,14 @@ const styles = StyleSheet.create({
   addInvestorBtn: {
     padding: 4,
   },
+  investorRowContainer: {
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
   investorRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -621,6 +781,17 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 8,
   },
+  itemRow: {
+    marginBottom: 8,
+  },
+  itemInput: {
+    flex: 1,
+  },
+  marketValueText: {
+    fontSize: 13,
+    color: '#4caf50',
+    fontWeight: '600',
+  },
   submitButton: {
     backgroundColor: '#4caf50',
     flexDirection: 'row',
@@ -629,6 +800,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 8,
     marginTop: 10,
+    marginBottom: 20,
   },
   submitButtonDisabled: {
     opacity: 0.6,
