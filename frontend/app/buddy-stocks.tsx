@@ -202,6 +202,7 @@ export default function BuddyStocks() {
     setTotalCost('');
     setPayoutValue('');
     setBlankPayment('');
+    setPayoutsReceived('0');
     setInvestorIds(['']);
     setInvestorSplits(['100']);
     setInvestorItems(['']);
@@ -219,6 +220,7 @@ export default function BuddyStocks() {
     setTotalCost(stock.total_cost.toString());
     setPayoutValue(stock.payout_value.toString());
     setBlankPayment(stock.blank_payment.toString());
+    setPayoutsReceived((stock.payouts_received || 0).toString());
     
     // Load investors
     const ids = stock.investors.map(inv => inv.user_id.toString());
