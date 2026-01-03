@@ -365,20 +365,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#333',
+    justifyContent: 'center',
   },
   summaryItem: {
-    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
   },
   summaryValue: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#4caf50',
+    marginHorizontal: 8,
   },
   summaryLabel: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#888',
-    marginTop: 2,
   },
   content: {
     flex: 1,
