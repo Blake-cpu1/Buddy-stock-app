@@ -398,6 +398,55 @@ export default function PaymentSchedule() {
 
         <View style={styles.bottomPadding} />
       </ScrollView>
+
+      {/* Send Money Modal */}
+      <Modal
+        visible={sendMoneyModal.visible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setSendMoneyModal({ ...sendMoneyModal, visible: false })}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Confirm Payment</Text>
+              <TouchableOpacity onPress={() => setSendMoneyModal({ ...sendMoneyModal, visible: false })}>
+                <Ionicons name="close" size={24} color="#888" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              <Text style={styles.modalLabel}>Pay to:</Text>
+              <Text style={styles.modalValue}>{sendMoneyModal.userName}</Text>
+              
+              <Text style={styles.modalLabel}>Amount:</Text>
+              <Text style={styles.modalAmount}>${sendMoneyModal.amount.toLocaleString()}</Text>
+              
+              <TouchableOpacity 
+                style={styles.sendMoneyButton}
+                onPress={handleCopyAndOpenProfile}
+              >
+                <Ionicons name="open-outline" size={20} color="#fff" />
+                <Text style={styles.sendMoneyButtonText}>Copy Amount & Open Profile</Text>
+              </TouchableOpacity>
+              
+              <Text style={styles.modalHint}>
+                Opens TornPDA/browser to {sendMoneyModal.userName}'s profile. Amount copied to clipboard for easy paste.
+              </Text>
+
+              <View style={styles.modalDivider} />
+
+              <TouchableOpacity 
+                style={styles.confirmButton}
+                onPress={handleConfirmPayment}
+              >
+                <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                <Text style={styles.confirmButtonText}>Mark as Paid</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
