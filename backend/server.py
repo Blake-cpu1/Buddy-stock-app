@@ -514,6 +514,15 @@ async def get_stocks():
             total_profit = (stock["payout_value"] * stock["total_payouts"]) - stock["total_cost"]
             stock["blake_total"] = total_profit
             
+            # Calculate next payout due date
+            payment_schedule = stock.get("payment_schedule", [])
+            next_payout_date = None
+            for payment in payment_schedule:
+                if not payment.get("paid", False):
+                    next_payout_date = payment.get("due_date")
+                    break
+            stock["next_payout_due"] = next_payout_date
+            
             result.append(stock)
         
         # Sort by start date descending
