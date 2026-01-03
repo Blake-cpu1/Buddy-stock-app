@@ -261,6 +261,18 @@ export default function BuddyStocks() {
     return `$${amount}`;
   };
 
+  const formatDateUK = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    } catch {
+      return dateStr;
+    }
+  };
+
   const addInvestorRow = () => {
     setInvestorIds([...investorIds, '']);
     setInvestorSplits([...investorSplits, '']);
