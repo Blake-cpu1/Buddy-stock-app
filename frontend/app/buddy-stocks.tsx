@@ -442,9 +442,14 @@ export default function BuddyStocks() {
                   <TextInput style={styles.input} value={payoutValue} onChangeText={setPayoutValue} placeholder="150000" placeholderTextColor="#666" keyboardType="numeric" />
                 </View>
                 <View style={styles.inputHalf}>
-                  <Text style={styles.label}>Blank Payment</Text>
-                  <TextInput style={styles.input} value={blankPayment} onChangeText={setBlankPayment} placeholder="50000" placeholderTextColor="#666" keyboardType="numeric" />
+                  <Text style={styles.label}>Payouts Received</Text>
+                  <TextInput style={styles.input} value={payoutsReceived} onChangeText={setPayoutsReceived} placeholder="0" placeholderTextColor="#666" keyboardType="numeric" />
                 </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Blank Payment (Auto-filled)</Text>
+                <TextInput style={styles.input} value={blankPayment} onChangeText={setBlankPayment} placeholder="Auto-filled from stock name" placeholderTextColor="#666" keyboardType="numeric" />
               </View>
 
               <View style={styles.investorsSection}>
