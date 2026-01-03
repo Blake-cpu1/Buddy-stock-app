@@ -52,7 +52,7 @@ class APIKeyResponse(BaseModel):
 
 class InvestorSplit(BaseModel):
     user_id: int
-    user_name: str
+    user_name: Optional[str] = None  # Optional, will be fetched from API if not provided
     split_percentage: float
 
 class StockCreate(BaseModel):
