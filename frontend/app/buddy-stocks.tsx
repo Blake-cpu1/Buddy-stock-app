@@ -169,9 +169,8 @@ export default function BuddyStocks() {
     setTotalCost('');
     setPayoutValue('');
     setBlankPayment('');
-    setItemName('');
-    setItemId(null);
-    setItemValue(null);
+    setItemNames('');
+    setItemsData([]);
     setEditingStock(null);
   };
 
