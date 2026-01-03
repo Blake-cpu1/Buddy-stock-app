@@ -280,12 +280,23 @@ export default function PaymentSchedule() {
             </View>
           ) : (
             sortedUnpaidPayments.map((payment) => (
-              <View key={payment.payment_number} style={styles.paymentCard}>
+              <View key={payment.payment_number} style={[
+                styles.paymentCard,
+                isToday(payment.due_date) && styles.paymentCardDueToday
+              ]}>
                 <View style={styles.paymentHeader}>
                   <Text style={styles.paymentNumber}>Payment #{payment.payment_number}</Text>
-                  <View style={styles.dueDateContainer}>
-                    <Ionicons name="calendar-outline" size={16} color="#888" />
-                    <Text style={styles.dueDate}>{formatDate(payment.due_date)}</Text>
+                  <View style={[
+                    styles.dueDateContainer,
+                    isToday(payment.due_date) && styles.dueDateToday
+                  ]}>
+                    {isToday(payment.due_date) && (
+                      <Text style={styles.todayBadge}>TODAY</Text>
+                    )}
+                    <Ionicons name="calendar-outline" size={16} color={isToday(payment.due_date) ? "#ffc107" : "#888"} />
+                    <Text style={[styles.dueDate, isToday(payment.due_date) && styles.dueDateTextToday]}>
+                      {formatDate(payment.due_date)}
+                    </Text>
                   </View>
                 </View>
 
@@ -308,7 +319,7 @@ export default function PaymentSchedule() {
                               <Ionicons name="checkmark-circle" size={24} color="#4caf50" />
                             </TouchableOpacity>
                           ) : (
-                            <TouchableOpacity onPress={() => handleMarkPaid(payment.payment_number, inv.user_id)}>
+                            <TouchableOpacity onPress={() => openSendMoneyModal(payment, inv)}>
                               <Ionicons name="ellipse-outline" size={24} color="#888" />
                             </TouchableOpacity>
                           )}
