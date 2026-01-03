@@ -82,13 +82,30 @@ export default function PaymentSchedule() {
     setDetectingEvents(true);
     try {
       const response = await axios.post(`${API_URL}/api/stocks/${stockId}/payments/check-events`);
-      Alert.alert(
-        'Auto-Detection Complete',
-        response.data.message || `Detected ${response.data.updates_made} payment(s)`
-      );
+      
+      const detected = response.data.detected_logs || [];
+      if (detected.length > 0) {
+        const logDetails = detected.map((d: any) => 
+          `Payment #${d.payment_number}: ${d.investor} - ${d.item}`
+        ).join('\n');
+        
+        Alert.alert(
+          'Auto-Detection Complete',
+          `Found ${detected.length} payment(s):\n\n${logDetails}`,
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert(
+          'Auto-Detection Complete',
+          'No new payments detected in your logs.\n\nMake sure:\n• Item name is set for each investor\n• The investor has sent you the item\n• The logs show the transaction',
+          [{ text: 'OK' }]
+        );
+      }
+      
       fetchPayments();
     } catch (error: any) {
-      Alert.alert('Error', 'Failed to check events');
+      const errorMsg = error.response?.data?.detail || 'Failed to check logs';
+      Alert.alert('Error', errorMsg);
     } finally {
       setDetectingEvents(false);
     }
