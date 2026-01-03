@@ -347,21 +347,14 @@ export default function BuddyStocks() {
                   </View>
                 </View>
 
-                <View style={styles.investorSection}>
-                  <Text style={styles.investorTitle}>Investors:</Text>
-                  {stock.investors.map((inv, idx) => (
-                    <View key={idx}>
-                      <Text style={styles.investorText}>
-                        {inv.user_name || `User ${inv.user_id}`} ({inv.split_percentage}%)
-                      </Text>
-                      {inv.item_name && (
-                        <Text style={styles.itemText}>
-                          → {inv.item_name} {inv.market_value && `(${formatMoney(inv.market_value)})`}
-                        </Text>
-                      )}
-                    </View>
-                  ))}
-                </View>
+                {/* Show buddy item info */}
+                {stock.investors[0]?.item_name && (
+                  <View style={styles.buddyItemSection}>
+                    <Text style={styles.buddyItemText}>
+                      Item: {stock.investors[0].item_name} {stock.investors[0].market_value && `(${formatMoney(stock.investors[0].market_value)})`}
+                    </Text>
+                  </View>
+                )}
 
                 <TouchableOpacity
                   style={styles.viewPaymentsButton}
