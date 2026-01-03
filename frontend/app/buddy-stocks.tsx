@@ -780,6 +780,12 @@ const styles = StyleSheet.create({
     color: '#4caf50',
     fontWeight: '600',
   },
+  itemsListContainer: {
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 6,
+  },
   submitButton: {
     backgroundColor: '#4caf50',
     flexDirection: 'row',
