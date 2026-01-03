@@ -464,13 +464,14 @@ async def create_stock(stock: StockCreate):
                 "split_percentage": inv.split_percentage,
                 "item_name": inv.item_name,
                 "item_id": inv.item_id,
-                "market_value": inv.market_value
+                "market_value": inv.market_value,
+                "items": [{"name": i.name, "id": i.id, "value": i.value} for i in inv.items] if inv.items else None
             }
             
             investors_with_names.append(investor_data)
         
         # Calculate total payouts (use max_payouts for ongoing investments)
-        total_payouts = stock.get("max_payouts", 100)
+        total_payouts = getattr(stock, 'max_payouts', 100) or 100
         
         # Create stock document
         stock_doc = {
@@ -482,8 +483,8 @@ async def create_stock(stock: StockCreate):
             "blank_payment": stock.blank_payment,
             "investors": investors_with_names,
             "total_payouts": total_payouts,
-            "payouts_received": stock.payouts_received,
-            "max_payouts": stock.max_payouts,
+            "payouts_received": stock.payouts_received or 0,
+            "max_payouts": stock.max_payouts or 100,
             "created_at": datetime.utcnow()
         }
         
