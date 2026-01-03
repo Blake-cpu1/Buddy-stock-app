@@ -350,6 +350,58 @@ export default function BuddyStocks() {
           </View>
         ) : (
           <View style={styles.listContainer}>
+            {/* Overview Dashboard */}
+            {overview && (
+              <View style={styles.overviewCard}>
+                <View style={styles.overviewHeader}>
+                  <Ionicons name="analytics-outline" size={24} color="#4caf50" />
+                  <Text style={styles.overviewTitle}>Portfolio Overview</Text>
+                </View>
+                
+                <View style={styles.overviewGrid}>
+                  <View style={styles.overviewItem}>
+                    <Text style={styles.overviewLabel}>Total Invested</Text>
+                    <Text style={styles.overviewValueCost}>{formatMoney(overview.totalCost)}</Text>
+                  </View>
+                  <View style={styles.overviewItem}>
+                    <Text style={styles.overviewLabel}>Total Received</Text>
+                    <Text style={styles.overviewValueProfit}>{formatMoney(overview.totalReceived)}</Text>
+                  </View>
+                  <View style={styles.overviewItem}>
+                    <Text style={styles.overviewLabel}>Payouts/Week</Text>
+                    <Text style={styles.overviewValue}>{formatMoney(overview.weeklyPayout)}</Text>
+                  </View>
+                  <View style={styles.overviewItem}>
+                    <Text style={styles.overviewLabel}>Avg ROI</Text>
+                    <Text style={[styles.overviewValue, overview.avgRoi >= 0 ? styles.roiPositive : styles.roiNegative]}>
+                      {overview.avgRoi >= 0 ? '+' : ''}{overview.avgRoi.toFixed(1)}%
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.overviewFooter}>
+                  <View style={styles.overviewFooterItem}>
+                    <Ionicons name="calendar-outline" size={16} color="#4caf50" />
+                    <Text style={styles.overviewFooterLabel}>Next Payout:</Text>
+                    {overview.nextPayoutDue ? (
+                      <Text style={styles.overviewFooterValue}>
+                        {overview.nextPayoutDue.name} - {formatDateUK(overview.nextPayoutDue.date)}
+                      </Text>
+                    ) : (
+                      <Text style={styles.overviewFooterValueMuted}>All caught up!</Text>
+                    )}
+                  </View>
+                  <View style={styles.overviewFooterItem}>
+                    <Ionicons name="checkmark-circle-outline" size={16} color="#4caf50" />
+                    <Text style={styles.overviewFooterLabel}>Total Payouts:</Text>
+                    <Text style={styles.overviewFooterValue}>{overview.totalPayoutsReceived}</Text>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            <Text style={styles.sectionTitle}>Your Investments ({stocks.length})</Text>
+            
             {stocks.map((stock) => (
               <View key={stock.id} style={styles.stockCard}>
                 <View style={styles.stockHeader}>
