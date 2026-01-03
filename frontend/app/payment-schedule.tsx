@@ -106,7 +106,7 @@ export default function PaymentSchedule() {
       visible: true,
       userId: inv.user_id,
       userName: inv.user_name,
-      amount: inv.amount,
+      amount: blankPayment,  // Use blank_payment (buddy payment) not payout_value
       paymentNumber: payment.payment_number,
     });
   };
