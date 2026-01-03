@@ -343,11 +343,11 @@ export default function BuddyStocks() {
                 <View style={styles.stockGrid}>
                   <View style={styles.gridItem}>
                     <Text style={styles.gridLabel}>Start Date</Text>
-                    <Text style={styles.gridValue}>{stock.start_date}</Text>
+                    <Text style={styles.gridValue}>{formatDateUK(stock.start_date)}</Text>
                   </View>
                   <View style={styles.gridItem}>
-                    <Text style={styles.gridLabel}>Length</Text>
-                    <Text style={styles.gridValue}>{stock.investment_length_days} days</Text>
+                    <Text style={styles.gridLabel}>Days</Text>
+                    <Text style={styles.gridValue}>{stock.days_since_start} days</Text>
                   </View>
                   <View style={styles.gridItem}>
                     <Text style={styles.gridLabel}>Payout Every</Text>
@@ -355,7 +355,7 @@ export default function BuddyStocks() {
                   </View>
                   <View style={styles.gridItem}>
                     <Text style={styles.gridLabel}>Total Payouts</Text>
-                    <Text style={styles.gridValue}>{stock.total_payouts}</Text>
+                    <Text style={styles.gridValue}>{stock.payouts_received || 0}</Text>
                   </View>
                 </View>
 
