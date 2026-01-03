@@ -174,6 +174,21 @@ async def fetch_torn_api(endpoint: str, selections: str) -> Dict[str, Any]:
 async def root():
     return {"message": "Torn Dashboard API", "status": "running"}
 
+@api_router.get("/status")
+async def get_status():
+    """Get API status including rate limit information"""
+    current_time = time.time()
+    # Count requests in the last minute
+    recent_requests = sum(1 for ts in request_timestamps if current_time - ts < 60)
+    
+    return {
+        "status": "running",
+        "requests_last_minute": recent_requests,
+        "rate_limit": 95,  # Our safety limit
+        "cache_entries": len(cache),
+        "cache_duration": CACHE_DURATION
+    }
+
 @api_router.post("/settings/api-key")
 async def update_api_key(data: APIKeyUpdate):
     """Update the Torn API key with validation"""
