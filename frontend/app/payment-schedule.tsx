@@ -25,6 +25,8 @@ interface InvestorPayment {
   paid: boolean;
   detected_log_id?: string;
   detected_log_text?: string;
+  detected_date?: string;
+  detection_status?: string;
 }
 
 interface Payment {
