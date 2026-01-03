@@ -21,6 +21,7 @@ const API_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || process.
 export default function Settings() {
   const [apiKey, setApiKey] = useState('');
   const [currentKeyPreview, setCurrentKeyPreview] = useState('');
+  const [isKeyDisabled, setIsKeyDisabled] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
   const router = useRouter();
@@ -34,6 +35,7 @@ export default function Settings() {
       const response = await axios.get(`${API_URL}/api/settings/api-key`);
       if (response.data.has_key) {
         setCurrentKeyPreview(response.data.key_preview);
+        setIsKeyDisabled(response.data.is_disabled || false);
       }
     } catch (error) {
       console.log('Error checking key:', error);
