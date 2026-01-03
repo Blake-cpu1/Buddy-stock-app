@@ -383,137 +383,213 @@ async def get_user_events():
         logger.error(f"Error fetching events: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# Buddy Stocks Endpoints
-@api_router.post("/buddy-stocks")
-async def create_buddy_stock(buddy_stock: BuddyStockCreate):
-    """Add a new buddy stock tracker"""
+# Stock Investment Endpoints
+@api_router.post("/stocks")
+async def create_stock(stock: StockCreate):
+    """Create a new stock investment"""
     try:
-        # Fetch user info from Torn API to get their name
-        user_data = await fetch_torn_api("user", f"basic&id={buddy_stock.user_id}")
-        user_name = user_data.get("name", f"User {buddy_stock.user_id}")
+        from dateutil import parser
         
-        # Create buddy stock document
-        buddy_stock_doc = {
-            "user_id": buddy_stock.user_id,
-            "user_name": user_name,
-            "item_name": buddy_stock.item_name,
-            "interval_days": buddy_stock.interval_days,
-            "last_received": None,
-            "next_due": None,
+        # Validate and parse start date
+        try:
+            start_date = parser.parse(stock.start_date).date()
+        except:
+            raise HTTPException(status_code=400, detail="Invalid start_date format. Use YYYY-MM-DD")
+        
+        # Validate investors total to 100%
+        total_split = sum(inv.split_percentage for inv in stock.investors)
+        if abs(total_split - 100.0) > 0.01:
+            raise HTTPException(status_code=400, detail=f"Investor splits must total 100%, currently {total_split}%")
+        
+        # Fetch investor names from Torn API
+        investors_with_names = []
+        for inv in stock.investors:
+            try:
+                user_data = await fetch_torn_api("user", f"basic&id={inv.user_id}")
+                user_name = user_data.get("name", f"User {inv.user_id}")
+            except:
+                user_name = f"User {inv.user_id}"
+            
+            investors_with_names.append({
+                "user_id": inv.user_id,
+                "user_name": user_name,
+                "split_percentage": inv.split_percentage
+            })
+        
+        # Calculate total payouts
+        total_payouts = stock.investment_length_days // stock.days_per_payout
+        
+        # Create stock document
+        stock_doc = {
+            "stock_name": stock.stock_name,
+            "start_date": stock.start_date,
+            "investment_length_days": stock.investment_length_days,
+            "days_per_payout": stock.days_per_payout,
+            "total_cost": stock.total_cost,
+            "payout_value": stock.payout_value,
+            "blank_payment": stock.blank_payment,
+            "investors": investors_with_names,
+            "total_payouts": total_payouts,
             "created_at": datetime.utcnow()
         }
         
-        result = await db.buddy_stocks.insert_one(buddy_stock_doc)
+        result = await db.stocks.insert_one(stock_doc)
         
-        logger.info(f"Created buddy stock: {user_name} - {buddy_stock.item_name}")
+        logger.info(f"Created stock investment: {stock.stock_name}")
         return {
             "success": True,
             "id": str(result.inserted_id),
-            "user_name": user_name
+            "stock_name": stock.stock_name
         }
     
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error creating buddy stock: {e}")
+        logger.error(f"Error creating stock: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@api_router.get("/buddy-stocks")
-async def get_buddy_stocks():
-    """Get all buddy stocks with calculated due dates"""
+@api_router.get("/stocks")
+async def get_stocks():
+    """Get all stock investments"""
     try:
-        buddy_stocks = await db.buddy_stocks.find().to_list(1000)
+        stocks = await db.stocks.find().to_list(1000)
         
-        # Process each buddy stock to calculate days until due
         result = []
-        current_time = datetime.utcnow()
-        
-        for stock in buddy_stocks:
+        for stock in stocks:
             stock["id"] = str(stock.pop("_id"))
             
-            # Calculate days until due
-            if stock.get("next_due"):
-                next_due = stock["next_due"]
-                time_diff = next_due - current_time
-                days_until = time_diff.days
-                stock["days_until_due"] = days_until
-                stock["is_overdue"] = days_until < 0
-            else:
-                stock["days_until_due"] = None
-                stock["is_overdue"] = False
+            # Calculate Blake Total (total profit)
+            total_profit = (stock["payout_value"] * stock["total_payouts"]) - stock["total_cost"]
+            stock["blake_total"] = total_profit
             
             result.append(stock)
         
-        # Sort by days until due (overdue first, then soonest)
-        result.sort(key=lambda x: (
-            not x["is_overdue"],
-            x["days_until_due"] if x["days_until_due"] is not None else 999999
-        ))
+        # Sort by start date descending
+        result.sort(key=lambda x: x.get("start_date", ""), reverse=True)
         
-        return {"buddy_stocks": result}
+        return {"stocks": result}
     
     except Exception as e:
-        logger.error(f"Error fetching buddy stocks: {e}")
+        logger.error(f"Error fetching stocks: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@api_router.put("/buddy-stocks/{stock_id}/received")
-async def mark_buddy_stock_received(stock_id: str):
-    """Mark a buddy stock item as received"""
+@api_router.get("/stocks/{stock_id}")
+async def get_stock(stock_id: str):
+    """Get a single stock investment"""
     try:
         from bson import ObjectId
         
-        # Get the buddy stock
-        stock = await db.buddy_stocks.find_one({"_id": ObjectId(stock_id)})
+        stock = await db.stocks.find_one({"_id": ObjectId(stock_id)})
         if not stock:
-            raise HTTPException(status_code=404, detail="Buddy stock not found")
+            raise HTTPException(status_code=404, detail="Stock not found")
         
-        # Calculate next due date
-        current_time = datetime.utcnow()
-        next_due = current_time + timedelta(days=stock["interval_days"])
+        stock["id"] = str(stock.pop("_id"))
         
-        # Update the buddy stock
-        await db.buddy_stocks.update_one(
+        # Calculate Blake Total
+        total_profit = (stock["payout_value"] * stock["total_payouts"]) - stock["total_cost"]
+        stock["blake_total"] = total_profit
+        
+        return stock
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching stock: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.put("/stocks/{stock_id}")
+async def update_stock(stock_id: str, stock_update: StockUpdate):
+    """Update a stock investment"""
+    try:
+        from bson import ObjectId
+        
+        # Get existing stock
+        existing_stock = await db.stocks.find_one({"_id": ObjectId(stock_id)})
+        if not existing_stock:
+            raise HTTPException(status_code=404, detail="Stock not found")
+        
+        # Build update dict
+        update_data = {}
+        if stock_update.stock_name is not None:
+            update_data["stock_name"] = stock_update.stock_name
+        if stock_update.start_date is not None:
+            update_data["start_date"] = stock_update.start_date
+        if stock_update.investment_length_days is not None:
+            update_data["investment_length_days"] = stock_update.investment_length_days
+        if stock_update.days_per_payout is not None:
+            update_data["days_per_payout"] = stock_update.days_per_payout
+        if stock_update.total_cost is not None:
+            update_data["total_cost"] = stock_update.total_cost
+        if stock_update.payout_value is not None:
+            update_data["payout_value"] = stock_update.payout_value
+        if stock_update.blank_payment is not None:
+            update_data["blank_payment"] = stock_update.blank_payment
+        
+        # Handle investor updates
+        if stock_update.investors is not None:
+            # Validate splits total to 100%
+            total_split = sum(inv.split_percentage for inv in stock_update.investors)
+            if abs(total_split - 100.0) > 0.01:
+                raise HTTPException(status_code=400, detail=f"Investor splits must total 100%, currently {total_split}%")
+            
+            # Fetch investor names
+            investors_with_names = []
+            for inv in stock_update.investors:
+                try:
+                    user_data = await fetch_torn_api("user", f"basic&id={inv.user_id}")
+                    user_name = user_data.get("name", f"User {inv.user_id}")
+                except:
+                    user_name = f"User {inv.user_id}"
+                
+                investors_with_names.append({
+                    "user_id": inv.user_id,
+                    "user_name": user_name,
+                    "split_percentage": inv.split_percentage
+                })
+            
+            update_data["investors"] = investors_with_names
+        
+        # Recalculate total payouts if needed
+        investment_length = update_data.get("investment_length_days", existing_stock.get("investment_length_days"))
+        days_per_payout = update_data.get("days_per_payout", existing_stock.get("days_per_payout"))
+        if investment_length and days_per_payout:
+            update_data["total_payouts"] = investment_length // days_per_payout
+        
+        update_data["updated_at"] = datetime.utcnow()
+        
+        # Update stock
+        await db.stocks.update_one(
             {"_id": ObjectId(stock_id)},
-            {
-                "$set": {
-                    "last_received": current_time,
-                    "next_due": next_due,
-                    "updated_at": current_time
-                }
-            }
+            {"$set": update_data}
         )
         
-        logger.info(f"Marked buddy stock as received: {stock['user_name']} - {stock['item_name']}")
-        return {
-            "success": True,
-            "last_received": current_time,
-            "next_due": next_due
-        }
+        logger.info(f"Updated stock: {stock_id}")
+        return {"success": True, "message": "Stock updated successfully"}
     
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error marking buddy stock as received: {e}")
+        logger.error(f"Error updating stock: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@api_router.delete("/buddy-stocks/{stock_id}")
-async def delete_buddy_stock(stock_id: str):
-    """Delete a buddy stock tracker"""
+@api_router.delete("/stocks/{stock_id}")
+async def delete_stock(stock_id: str):
+    """Delete a stock investment"""
     try:
         from bson import ObjectId
         
-        result = await db.buddy_stocks.delete_one({"_id": ObjectId(stock_id)})
+        result = await db.stocks.delete_one({"_id": ObjectId(stock_id)})
         
         if result.deleted_count == 0:
-            raise HTTPException(status_code=404, detail="Buddy stock not found")
+            raise HTTPException(status_code=404, detail="Stock not found")
         
-        logger.info(f"Deleted buddy stock: {stock_id}")
-        return {"success": True, "message": "Buddy stock deleted"}
+        logger.info(f"Deleted stock: {stock_id}")
+        return {"success": True, "message": "Stock deleted successfully"}
     
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error deleting buddy stock: {e}")
+        logger.error(f"Error deleting stock: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # Include the router in the main app
