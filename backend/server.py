@@ -882,23 +882,31 @@ async def check_events_for_payments(stock_id: str):
         updates_made = 0
         detected_logs = []
         
-        # Get unique investor user IDs
-        investor_ids = set()
+        # Build a map of investor user_ids to their item_ids for quick lookup
+        investor_item_map = {}
         for inv in stock.get("investors", []):
-            if inv.get("user_id"):
-                investor_ids.add(inv["user_id"])
+            user_id = inv.get("user_id")
+            item_id = inv.get("item_id")
+            if user_id and item_id:
+                investor_item_map[user_id] = {
+                    "item_id": item_id,
+                    "item_name": inv.get("item_name", ""),
+                    "user_name": inv.get("user_name", f"User {user_id}")
+                }
         
-        # Fetch logs for each investor using their user ID
-        all_investor_logs = {}
-        for investor_id in investor_ids:
-            try:
-                # Use user-specific logs: https://api.torn.com/user/{userId}?selections=log
-                logs_data = await fetch_torn_api(f"user/{investor_id}", "log")
-                all_investor_logs[investor_id] = logs_data.get("log", {})
-                logger.info(f"Fetched logs for investor {investor_id}")
-            except Exception as e:
-                logger.warning(f"Could not fetch logs for investor {investor_id}: {e}")
-                all_investor_logs[investor_id] = {}
+        if not investor_item_map:
+            return {
+                "success": False,
+                "updates_made": 0,
+                "detected_logs": [],
+                "message": "No investors with item IDs configured. Please set item names for investors."
+            }
+        
+        # Fetch YOUR logs (the stock owner's logs) - items received will show here
+        logs_data = await fetch_torn_api("user", "log&cat=85")  # Category 85 = Item receiving
+        logs = logs_data.get("log", {})
+        
+        logger.info(f"Fetched {len(logs)} log entries for payment detection")
         
         # Check each unpaid payment
         for payment in payment_schedule:
@@ -912,42 +920,52 @@ async def check_events_for_payments(stock_id: str):
                 
                 user_id = inv_payment["user_id"]
                 user_name = inv_payment.get("user_name", "")
+                item_id = inv_payment.get("item_id")
                 item_name = inv_payment.get("item_name", "")
                 
-                if not item_name:
-                    # Skip if no item specified
+                if not item_id:
+                    # Skip if no item ID specified
                     continue
                 
-                # Get logs for this specific investor
-                investor_logs = all_investor_logs.get(user_id, {})
-                
                 # Search logs for matching entries
-                for log_id, log_entry in investor_logs.items():
-                    log_text = log_entry.get("log", "").lower()
+                for log_id, log_entry in logs.items():
+                    log_code = log_entry.get("log", 0)
+                    log_title = log_entry.get("title", "").lower()
+                    log_category = log_entry.get("category", "").lower()
+                    log_data = log_entry.get("data", {})
                     log_timestamp = log_entry.get("timestamp", 0)
                     log_date = datetime.fromtimestamp(log_timestamp).date() if log_timestamp else None
                     
-                    # Check if log mentions the item being sent
-                    item_mentioned = item_name.lower() in log_text
+                    # Check if this is an item receive log
+                    # Log code 4102 = Item send, but from receiver's perspective it would be different
+                    # Look for "item" in category or title
+                    is_item_log = "item" in log_category or "item" in log_title
                     
-                    # Check if it's a sent item transaction (from this user's perspective, they "sent" the item)
-                    is_sent = "sent" in log_text or "gave" in log_text
+                    # Check the data structure for sender and items
+                    sender_id = log_data.get("sender")
+                    items = log_data.get("items", [])
                     
-                    # Match if item is mentioned and it's a sent transaction
-                    if item_mentioned and is_sent:
-                        # Mark as paid
-                        inv_payment["paid"] = True
-                        inv_payment["detected_log_id"] = log_id
-                        inv_payment["detected_log_text"] = log_entry.get("log", "")
-                        inv_payment["detected_date"] = log_date.isoformat() if log_date else None
-                        updates_made += 1
-                        detected_logs.append({
-                            "payment_number": payment["payment_number"],
-                            "investor": user_name or f"User {user_id}",
-                            "item": item_name,
-                            "log_text": log_entry.get("log", "")
-                        })
-                        logger.info(f"Auto-detected payment from user {user_id} ({user_name}) - {item_name} in log {log_id}")
+                    # Match if sender is the investor and item ID matches
+                    if sender_id == user_id:
+                        for item in items:
+                            if item.get("id") == item_id:
+                                # Found a match!
+                                inv_payment["paid"] = True
+                                inv_payment["detected_log_id"] = log_id
+                                inv_payment["detected_log_text"] = f"Item received from {user_name} on {log_date.isoformat() if log_date else 'unknown date'}"
+                                inv_payment["detected_date"] = log_date.isoformat() if log_date else None
+                                updates_made += 1
+                                detected_logs.append({
+                                    "payment_number": payment["payment_number"],
+                                    "investor": user_name or f"User {user_id}",
+                                    "item": item_name,
+                                    "log_text": f"Received {item_name} from {user_name}",
+                                    "timestamp": log_timestamp
+                                })
+                                logger.info(f"Auto-detected payment from user {user_id} ({user_name}) - {item_name} in log {log_id}")
+                                break
+                    
+                    if inv_payment["paid"]:
                         break
             
             # Check if all investors paid for this payment
