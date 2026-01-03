@@ -395,10 +395,8 @@ async def create_buddy_stock(buddy_stock: BuddyStockCreate):
         logger.info(f"Created buddy stock: {user_name} - {buddy_stock.item_name}")
         return {
             "success": True,
-            "buddy_stock": {
-                "id": str(result.inserted_id),
-                **buddy_stock_doc
-            }
+            "id": str(result.inserted_id),
+            "user_name": user_name
         }
     
     except HTTPException:
