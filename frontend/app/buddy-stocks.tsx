@@ -412,14 +412,16 @@ export default function BuddyStocks() {
               <View key={stock.id} style={styles.stockCard}>
                 <View style={styles.stockHeader}>
                   <Text style={styles.stockName}>{stock.stock_name}</Text>
-                  <View style={styles.stockActions}>
-                    <TouchableOpacity onPress={() => openEditModal(stock)} style={styles.actionIcon}>
-                      <Ionicons name="create-outline" size={22} color="#2196f3" />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => handleDeleteStock(stock.id, stock.stock_name)} style={styles.actionIcon}>
-                      <Ionicons name="trash-outline" size={20} color="#f44336" />
-                    </TouchableOpacity>
-                  </View>
+                  {editMode && (
+                    <View style={styles.stockActions}>
+                      <TouchableOpacity onPress={() => openEditModal(stock)} style={styles.actionIcon}>
+                        <Ionicons name="create-outline" size={22} color="#2196f3" />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleDeleteStock(stock.id, stock.stock_name)} style={styles.actionIcon}>
+                        <Ionicons name="trash-outline" size={20} color="#f44336" />
+                      </TouchableOpacity>
+                    </View>
+                  )}
                 </View>
 
                 <View style={styles.stockGrid}>
