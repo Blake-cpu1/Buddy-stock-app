@@ -286,6 +286,14 @@ const styles = StyleSheet.create({
     color: '#888',
     marginTop: 4,
   },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
   settingsButton: {
     padding: 8,
   },
