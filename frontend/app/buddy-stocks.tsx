@@ -58,7 +58,6 @@ export default function BuddyStocks() {
   // Form fields
   const [stockName, setStockName] = useState('');
   const [startDate, setStartDate] = useState('');
-  const [investmentLength, setInvestmentLength] = useState('');
   const [daysPerPayout, setDaysPerPayout] = useState('');
   const [totalCost, setTotalCost] = useState('');
   const [payoutValue, setPayoutValue] = useState('');
@@ -126,7 +125,7 @@ export default function BuddyStocks() {
 
   const handleAddOrEditStock = async () => {
     // Validate form
-    if (!stockName || !startDate || !investmentLength || !daysPerPayout || !totalCost || !payoutValue || !blankPayment) {
+    if (!stockName || !startDate || !daysPerPayout || !totalCost || !payoutValue || !blankPayment) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
@@ -159,7 +158,6 @@ export default function BuddyStocks() {
       const stockData = {
         stock_name: stockName,
         start_date: startDate,
-        investment_length_days: parseInt(investmentLength),
         days_per_payout: parseInt(daysPerPayout),
         total_cost: parseInt(totalCost),
         payout_value: parseInt(payoutValue),
@@ -192,7 +190,6 @@ export default function BuddyStocks() {
   const resetForm = () => {
     setStockName('');
     setStartDate('');
-    setInvestmentLength('');
     setDaysPerPayout('');
     setTotalCost('');
     setPayoutValue('');
@@ -210,7 +207,6 @@ export default function BuddyStocks() {
     setEditingStock(stock);
     setStockName(stock.stock_name);
     setStartDate(stock.start_date);
-    setInvestmentLength(stock.investment_length_days.toString());
     setDaysPerPayout(stock.days_per_payout.toString());
     setTotalCost(stock.total_cost.toString());
     setPayoutValue(stock.payout_value.toString());
