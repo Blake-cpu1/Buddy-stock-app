@@ -478,6 +478,14 @@ export default function BuddyStocks() {
                     <Text style={[styles.roiText, stock.annualized_roi >= 0 ? styles.roiPositive : styles.roiNegative]}>
                       ROI: {stock.annualized_roi >= 0 ? '+' : ''}{stock.annualized_roi}%
                     </Text>
+                    {(() => {
+                      const daysToBreakeven = calculateDaysToBreakeven(stock);
+                      if (daysToBreakeven === null) return null;
+                      if (daysToBreakeven === 0) {
+                        return <Text style={styles.breakevenText}>✓ Broken even!</Text>;
+                      }
+                      return <Text style={styles.breakevenText}>{daysToBreakeven} days to breakeven</Text>;
+                    })()}
                   </View>
                   <View style={styles.moneyItem}>
                     <Text style={styles.moneyLabel}>Total Received</Text>
