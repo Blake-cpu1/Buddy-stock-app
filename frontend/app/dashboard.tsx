@@ -235,6 +235,38 @@ export default function Dashboard() {
           </View>
         </View>
 
+        {/* Quick Actions Card */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="apps-outline" size={24} color="#00bcd4" />
+            <Text style={styles.cardTitle}>Quick Actions</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => router.push('/buddy-stocks')}
+          >
+            <Ionicons name="cube" size={24} color="#4caf50" />
+            <Text style={styles.actionButtonText}>Buddy Stocks</Text>
+            <Ionicons name="chevron-forward" size={20} color="#888" />
+          </TouchableOpacity>
+        </View>
+              <Text style={styles.statValue}>{data.battle_stats.defense.toLocaleString()}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statLabel}>Speed</Text>
+              <Text style={styles.statValue}>{data.battle_stats.speed.toLocaleString()}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statLabel}>Dexterity</Text>
+              <Text style={styles.statValue}>{data.battle_stats.dexterity.toLocaleString()}</Text>
+            </View>
+          </View>
+          <View style={styles.totalStats}>
+            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalValue}>{data.battle_stats.total.toLocaleString()}</Text>
+          </View>
+        </View>
+
         <View style={{ height: 20 }} />
       </ScrollView>
     </View>
