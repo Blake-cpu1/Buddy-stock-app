@@ -781,27 +781,27 @@ async def mark_payment_paid(stock_id: str, payment_number: int, investor_user_id
 
 @api_router.post("/stocks/{stock_id}/payments/check-events")
 async def check_events_for_payments(stock_id: str):
-    """Check Torn events API to auto-detect payments"""
+    """Check Torn logs API to auto-detect payments from specific users sending specific items"""
     try:
         from bson import ObjectId
+        from dateutil import parser as date_parser
         
         stock = await db.stocks.find_one({"_id": ObjectId(stock_id)})
         if not stock:
             raise HTTPException(status_code=404, detail="Stock not found")
         
-        # Fetch user events from Torn API
-        events_data = await fetch_torn_api("user", "events")
-        events = events_data.get("events", {})
+        # Fetch user logs from Torn API (category 85 = trades/items)
+        logs_data = await fetch_torn_api("user", "log")
+        logs = logs_data.get("log", {})
         
         payment_schedule = stock.get("payment_schedule", [])
         updates_made = 0
+        detected_logs = []
         
         # Check each unpaid payment
         for payment in payment_schedule:
             if payment["paid"]:
                 continue
-            
-            payment_date = parser.parse(payment["due_date"]).date()
             
             # Check each investor payment
             for inv_payment in payment["investor_payments"]:
@@ -809,33 +809,50 @@ async def check_events_for_payments(stock_id: str):
                     continue
                 
                 user_id = inv_payment["user_id"]
-                item_id = inv_payment.get("item_id")
+                user_name = inv_payment.get("user_name", "")
+                item_name = inv_payment.get("item_name", "")
                 
-                if not item_id:
+                if not item_name:
+                    # Skip if no item specified
                     continue
                 
-                # Search events for trades from this user with this item
-                for event_id, event in events.items():
-                    event_timestamp = event.get("timestamp", 0)
-                    event_date = datetime.fromtimestamp(event_timestamp).date()
+                # Search logs for matching entries
+                for log_id, log_entry in logs.items():
+                    log_text = log_entry.get("log", "").lower()
+                    log_timestamp = log_entry.get("timestamp", 0)
+                    log_date = datetime.fromtimestamp(log_timestamp).date() if log_timestamp else None
                     
-                    # Check if event is a trade and matches criteria
-                    if event.get("event") and "traded" in event["event"].lower():
-                        # Simple matching: check if user ID is in the event text
-                        if str(user_id) in str(event.get("event", "")):
-                            # Mark as paid
-                            inv_payment["paid"] = True
-                            inv_payment["detected_event_id"] = event_id
-                            updates_made += 1
-                            logger.info(f"Auto-detected payment from user {user_id} in event {event_id}")
-                            break
+                    # Check if log mentions the item and user
+                    item_mentioned = item_name.lower() in log_text
+                    user_id_mentioned = str(user_id) in log_text
+                    user_name_mentioned = user_name.lower() in log_text if user_name else False
+                    
+                    # Check if it's a received/sent item transaction
+                    is_received = "sent you" in log_text or "received" in log_text
+                    
+                    # Match if item and user are both mentioned and it's a received transaction
+                    if item_mentioned and (user_id_mentioned or user_name_mentioned) and is_received:
+                        # Mark as paid
+                        inv_payment["paid"] = True
+                        inv_payment["detected_log_id"] = log_id
+                        inv_payment["detected_log_text"] = log_entry.get("log", "")
+                        inv_payment["detected_date"] = log_date.isoformat() if log_date else None
+                        updates_made += 1
+                        detected_logs.append({
+                            "payment_number": payment["payment_number"],
+                            "investor": user_name or f"User {user_id}",
+                            "item": item_name,
+                            "log_text": log_entry.get("log", "")
+                        })
+                        logger.info(f"Auto-detected payment from user {user_id} ({user_name}) - {item_name} in log {log_id}")
+                        break
             
             # Check if all investors paid for this payment
             all_paid = all(inv["paid"] for inv in payment["investor_payments"])
             if all_paid and not payment["paid"]:
                 payment["paid"] = True
                 payment["paid_date"] = datetime.utcnow().isoformat()
-                payment["log_entry"] = "Auto-detected from events"
+                payment["log_entry"] = "Auto-detected from logs"
         
         # Update payment schedule if changes were made
         if updates_made > 0:
@@ -854,13 +871,14 @@ async def check_events_for_payments(stock_id: str):
         return {
             "success": True,
             "updates_made": updates_made,
-            "message": f"Detected {updates_made} payment(s) from events"
+            "detected_logs": detected_logs,
+            "message": f"Detected {updates_made} payment(s) from logs"
         }
     
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error checking events: {e}")
+        logger.error(f"Error checking logs: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # Include the router in the main app
