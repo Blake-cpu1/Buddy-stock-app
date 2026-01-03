@@ -57,17 +57,15 @@ export default function BuddyStocks() {
   
   // Form fields
   const [stockName, setStockName] = useState('');
+  const [buddyId, setBuddyId] = useState('');
   const [startDate, setStartDate] = useState('');
   const [daysPerPayout, setDaysPerPayout] = useState('');
   const [totalCost, setTotalCost] = useState('');
   const [payoutValue, setPayoutValue] = useState('');
   const [blankPayment, setBlankPayment] = useState('');
-  const [payoutsReceived, setPayoutsReceived] = useState('0');
-  const [investorIds, setInvestorIds] = useState<string[]>(['']);
-  const [investorSplits, setInvestorSplits] = useState<string[]>(['100']);
-  const [investorItems, setInvestorItems] = useState<string[]>(['']);
-  const [investorItemValues, setInvestorItemValues] = useState<(number | null)[]>([null]);
-  const [investorItemIds, setInvestorItemIds] = useState<(number | null)[]>([null]);
+  const [itemName, setItemName] = useState('');
+  const [itemId, setItemId] = useState<number | null>(null);
+  const [itemValue, setItemValue] = useState<number | null>(null);
   
   const router = useRouter();
 
