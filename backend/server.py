@@ -891,15 +891,28 @@ async def check_events_for_payments(stock_id: str):
         detected_logs = []
         
         # Build a map of investor user_ids to their item_ids for quick lookup
+        # Now supports multiple items per investor
         investor_item_map = {}
         for inv in stock.get("investors", []):
             user_id = inv.get("user_id")
-            item_id = inv.get("item_id")
-            if user_id and item_id:
+            user_name = inv.get("user_name", f"User {user_id}")
+            
+            # Get all item IDs (from new 'items' array or legacy single item)
+            item_ids = []
+            item_names = []
+            if inv.get("items"):
+                for item in inv["items"]:
+                    item_ids.append(item["id"])
+                    item_names.append(item["name"])
+            elif inv.get("item_id"):
+                item_ids.append(inv["item_id"])
+                item_names.append(inv.get("item_name", ""))
+            
+            if user_id and item_ids:
                 investor_item_map[user_id] = {
-                    "item_id": item_id,
-                    "item_name": inv.get("item_name", ""),
-                    "user_name": inv.get("user_name", f"User {user_id}")
+                    "item_ids": item_ids,
+                    "item_names": item_names,
+                    "user_name": user_name
                 }
         
         if not investor_item_map:
@@ -927,7 +940,8 @@ async def check_events_for_payments(stock_id: str):
             # Check if sender is one of our investors
             if sender_id in investor_item_map:
                 investor_info = investor_item_map[sender_id]
-                item_id = investor_info["item_id"]
+                item_ids = investor_info["item_ids"]
+                item_names = investor_info["item_names"]
                 
                 # Check if any item matches
                 for item in items:
