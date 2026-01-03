@@ -78,6 +78,7 @@ class StockUpdate(BaseModel):
     payout_value: Optional[int] = None
     blank_payment: Optional[int] = None
     investors: Optional[list[InvestorSplit]] = None
+    payouts_received: Optional[int] = None  # Track received payouts
 
 class PaymentUpdate(BaseModel):
     paid: bool
