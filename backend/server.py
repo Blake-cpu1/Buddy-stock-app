@@ -370,6 +370,136 @@ async def get_user_events():
         logger.error(f"Error fetching events: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Buddy Stocks Endpoints
+@api_router.post("/buddy-stocks")
+async def create_buddy_stock(buddy_stock: BuddyStockCreate):
+    """Add a new buddy stock tracker"""
+    try:
+        # Fetch user info from Torn API to get their name
+        user_data = await fetch_torn_api("user", f"basic&id={buddy_stock.user_id}")
+        user_name = user_data.get("name", f"User {buddy_stock.user_id}")
+        
+        # Create buddy stock document
+        buddy_stock_doc = {
+            "user_id": buddy_stock.user_id,
+            "user_name": user_name,
+            "item_name": buddy_stock.item_name,
+            "interval_days": buddy_stock.interval_days,
+            "last_received": None,
+            "next_due": None,
+            "created_at": datetime.utcnow()
+        }
+        
+        result = await db.buddy_stocks.insert_one(buddy_stock_doc)
+        buddy_stock_doc["id"] = str(result.inserted_id)
+        
+        logger.info(f"Created buddy stock: {user_name} - {buddy_stock.item_name}")
+        return {"success": True, "buddy_stock": buddy_stock_doc}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating buddy stock: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/buddy-stocks")
+async def get_buddy_stocks():
+    """Get all buddy stocks with calculated due dates"""
+    try:
+        buddy_stocks = await db.buddy_stocks.find().to_list(1000)
+        
+        # Process each buddy stock to calculate days until due
+        result = []
+        current_time = datetime.utcnow()
+        
+        for stock in buddy_stocks:
+            stock["id"] = str(stock.pop("_id"))
+            
+            # Calculate days until due
+            if stock.get("next_due"):
+                next_due = stock["next_due"]
+                time_diff = next_due - current_time
+                days_until = time_diff.days
+                stock["days_until_due"] = days_until
+                stock["is_overdue"] = days_until < 0
+            else:
+                stock["days_until_due"] = None
+                stock["is_overdue"] = False
+            
+            result.append(stock)
+        
+        # Sort by days until due (overdue first, then soonest)
+        result.sort(key=lambda x: (
+            not x["is_overdue"],
+            x["days_until_due"] if x["days_until_due"] is not None else 999999
+        ))
+        
+        return {"buddy_stocks": result}
+    
+    except Exception as e:
+        logger.error(f"Error fetching buddy stocks: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.put("/buddy-stocks/{stock_id}/received")
+async def mark_buddy_stock_received(stock_id: str):
+    """Mark a buddy stock item as received"""
+    try:
+        from bson import ObjectId
+        
+        # Get the buddy stock
+        stock = await db.buddy_stocks.find_one({"_id": ObjectId(stock_id)})
+        if not stock:
+            raise HTTPException(status_code=404, detail="Buddy stock not found")
+        
+        # Calculate next due date
+        current_time = datetime.utcnow()
+        next_due = current_time + timedelta(days=stock["interval_days"])
+        
+        # Update the buddy stock
+        await db.buddy_stocks.update_one(
+            {"_id": ObjectId(stock_id)},
+            {
+                "$set": {
+                    "last_received": current_time,
+                    "next_due": next_due,
+                    "updated_at": current_time
+                }
+            }
+        )
+        
+        logger.info(f"Marked buddy stock as received: {stock['user_name']} - {stock['item_name']}")
+        return {
+            "success": True,
+            "last_received": current_time,
+            "next_due": next_due
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error marking buddy stock as received: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.delete("/buddy-stocks/{stock_id}")
+async def delete_buddy_stock(stock_id: str):
+    """Delete a buddy stock tracker"""
+    try:
+        from bson import ObjectId
+        
+        result = await db.buddy_stocks.delete_one({"_id": ObjectId(stock_id)})
+        
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Buddy stock not found")
+        
+        logger.info(f"Deleted buddy stock: {stock_id}")
+        return {"success": True, "message": "Buddy stock deleted"}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting buddy stock: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Include the router in the main app
 app.include_router(api_router)
 
