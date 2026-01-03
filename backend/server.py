@@ -878,13 +878,27 @@ async def check_events_for_payments(stock_id: str):
         if not stock:
             raise HTTPException(status_code=404, detail="Stock not found")
         
-        # Fetch user logs from Torn API (category 85 = trades/items)
-        logs_data = await fetch_torn_api("user", "log")
-        logs = logs_data.get("log", {})
-        
         payment_schedule = stock.get("payment_schedule", [])
         updates_made = 0
         detected_logs = []
+        
+        # Get unique investor user IDs
+        investor_ids = set()
+        for inv in stock.get("investors", []):
+            if inv.get("user_id"):
+                investor_ids.add(inv["user_id"])
+        
+        # Fetch logs for each investor using their user ID
+        all_investor_logs = {}
+        for investor_id in investor_ids:
+            try:
+                # Use user-specific logs: https://api.torn.com/user/{userId}?selections=log
+                logs_data = await fetch_torn_api(f"user/{investor_id}", "log")
+                all_investor_logs[investor_id] = logs_data.get("log", {})
+                logger.info(f"Fetched logs for investor {investor_id}")
+            except Exception as e:
+                logger.warning(f"Could not fetch logs for investor {investor_id}: {e}")
+                all_investor_logs[investor_id] = {}
         
         # Check each unpaid payment
         for payment in payment_schedule:
@@ -904,22 +918,23 @@ async def check_events_for_payments(stock_id: str):
                     # Skip if no item specified
                     continue
                 
+                # Get logs for this specific investor
+                investor_logs = all_investor_logs.get(user_id, {})
+                
                 # Search logs for matching entries
-                for log_id, log_entry in logs.items():
+                for log_id, log_entry in investor_logs.items():
                     log_text = log_entry.get("log", "").lower()
                     log_timestamp = log_entry.get("timestamp", 0)
                     log_date = datetime.fromtimestamp(log_timestamp).date() if log_timestamp else None
                     
-                    # Check if log mentions the item and user
+                    # Check if log mentions the item being sent
                     item_mentioned = item_name.lower() in log_text
-                    user_id_mentioned = str(user_id) in log_text
-                    user_name_mentioned = user_name.lower() in log_text if user_name else False
                     
-                    # Check if it's a received/sent item transaction
-                    is_received = "sent you" in log_text or "received" in log_text
+                    # Check if it's a sent item transaction (from this user's perspective, they "sent" the item)
+                    is_sent = "sent" in log_text or "gave" in log_text
                     
-                    # Match if item and user are both mentioned and it's a received transaction
-                    if item_mentioned and (user_id_mentioned or user_name_mentioned) and is_received:
+                    # Match if item is mentioned and it's a sent transaction
+                    if item_mentioned and is_sent:
                         # Mark as paid
                         inv_payment["paid"] = True
                         inv_payment["detected_log_id"] = log_id
