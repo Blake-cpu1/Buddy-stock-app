@@ -120,12 +120,10 @@ export default function NotificationsScreen() {
           data: { type: 'test' },
           sound: true,
         },
-        trigger: {
-          seconds: 2, // Send in 2 seconds
-        },
+        trigger: null, // null = send immediately
       });
 
-      Alert.alert('Test Sent', 'You should receive a test notification in 2 seconds!');
+      Alert.alert('Test Sent', 'You should receive a test notification now!');
     } catch (error) {
       console.error('Error sending test notification:', error);
       Alert.alert('Error', 'Failed to send test notification');
