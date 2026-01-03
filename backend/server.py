@@ -881,6 +881,7 @@ async def check_events_for_payments(stock_id: str):
         payment_schedule = stock.get("payment_schedule", [])
         updates_made = 0
         detected_logs = []
+        used_log_ids = set()  # Track which log entries we've already used
         
         # Build a map of investor user_ids to their item_ids for quick lookup
         investor_item_map = {}
@@ -908,72 +909,93 @@ async def check_events_for_payments(stock_id: str):
         
         logger.info(f"Fetched {len(logs)} log entries for payment detection")
         
-        # Check each unpaid payment
-        for payment in payment_schedule:
-            if payment["paid"]:
+        # Build a list of matching logs sorted by timestamp (oldest first)
+        matching_logs = []
+        for log_id, log_entry in logs.items():
+            log_data = log_entry.get("data", {})
+            sender_id = log_data.get("sender")
+            items = log_data.get("items", [])
+            log_timestamp = log_entry.get("timestamp", 0)
+            
+            # Check if sender is one of our investors
+            if sender_id in investor_item_map:
+                investor_info = investor_item_map[sender_id]
+                item_id = investor_info["item_id"]
+                
+                # Check if any item matches
+                for item in items:
+                    if item.get("id") == item_id:
+                        matching_logs.append({
+                            "log_id": log_id,
+                            "timestamp": log_timestamp,
+                            "sender_id": sender_id,
+                            "item_id": item_id,
+                            "item_name": investor_info["item_name"],
+                            "user_name": investor_info["user_name"]
+                        })
+                        break
+        
+        # Sort by timestamp (oldest first) so we match oldest logs to oldest payments
+        matching_logs.sort(key=lambda x: x["timestamp"])
+        
+        logger.info(f"Found {len(matching_logs)} matching log entries for investors")
+        
+        # Check each unpaid payment (sorted by payment number, oldest first)
+        unpaid_payments = [(i, p) for i, p in enumerate(payment_schedule) if not p["paid"]]
+        
+        for match_log in matching_logs:
+            log_id = match_log["log_id"]
+            
+            # Skip if we've already used this log
+            if log_id in used_log_ids:
                 continue
             
-            # Check each investor payment
-            for inv_payment in payment["investor_payments"]:
-                if inv_payment["paid"]:
+            # Find the first unpaid payment for this investor
+            for idx, payment in unpaid_payments:
+                if payment["paid"]:
                     continue
                 
-                user_id = inv_payment["user_id"]
-                user_name = inv_payment.get("user_name", "")
-                item_id = inv_payment.get("item_id")
-                item_name = inv_payment.get("item_name", "")
-                
-                if not item_id:
-                    # Skip if no item ID specified
-                    continue
-                
-                # Search logs for matching entries
-                for log_id, log_entry in logs.items():
-                    log_code = log_entry.get("log", 0)
-                    log_title = log_entry.get("title", "").lower()
-                    log_category = log_entry.get("category", "").lower()
-                    log_data = log_entry.get("data", {})
-                    log_timestamp = log_entry.get("timestamp", 0)
-                    log_date = datetime.fromtimestamp(log_timestamp).date() if log_timestamp else None
-                    
-                    # Check if this is an item receive log
-                    # Log code 4102 = Item send, but from receiver's perspective it would be different
-                    # Look for "item" in category or title
-                    is_item_log = "item" in log_category or "item" in log_title
-                    
-                    # Check the data structure for sender and items
-                    sender_id = log_data.get("sender")
-                    items = log_data.get("items", [])
-                    
-                    # Match if sender is the investor and item ID matches
-                    if sender_id == user_id:
-                        for item in items:
-                            if item.get("id") == item_id:
-                                # Found a match!
-                                inv_payment["paid"] = True
-                                inv_payment["detected_log_id"] = log_id
-                                inv_payment["detected_log_text"] = f"Item received from {user_name} on {log_date.isoformat() if log_date else 'unknown date'}"
-                                inv_payment["detected_date"] = log_date.isoformat() if log_date else None
-                                updates_made += 1
-                                detected_logs.append({
-                                    "payment_number": payment["payment_number"],
-                                    "investor": user_name or f"User {user_id}",
-                                    "item": item_name,
-                                    "log_text": f"Received {item_name} from {user_name}",
-                                    "timestamp": log_timestamp
-                                })
-                                logger.info(f"Auto-detected payment from user {user_id} ({user_name}) - {item_name} in log {log_id}")
-                                break
-                    
+                # Check each investor payment
+                for inv_payment in payment["investor_payments"]:
                     if inv_payment["paid"]:
-                        break
-            
-            # Check if all investors paid for this payment
-            all_paid = all(inv["paid"] for inv in payment["investor_payments"])
-            if all_paid and not payment["paid"]:
-                payment["paid"] = True
-                payment["paid_date"] = datetime.utcnow().isoformat()
-                payment["log_entry"] = "Auto-detected from logs"
+                        continue
+                    
+                    user_id = inv_payment["user_id"]
+                    item_id = inv_payment.get("item_id")
+                    
+                    # Match if this log is for this investor and item
+                    if user_id == match_log["sender_id"] and item_id == match_log["item_id"]:
+                        # Mark as paid
+                        inv_payment["paid"] = True
+                        inv_payment["detected_log_id"] = log_id
+                        log_date = datetime.fromtimestamp(match_log["timestamp"]).date() if match_log["timestamp"] else None
+                        inv_payment["detected_log_text"] = f"Item received from {match_log['user_name']} on {log_date.isoformat() if log_date else 'unknown date'}"
+                        inv_payment["detected_date"] = log_date.isoformat() if log_date else None
+                        
+                        # Mark log as used
+                        used_log_ids.add(log_id)
+                        updates_made += 1
+                        detected_logs.append({
+                            "payment_number": payment["payment_number"],
+                            "investor": match_log["user_name"],
+                            "item": match_log["item_name"],
+                            "log_text": f"Received {match_log['item_name']} from {match_log['user_name']}",
+                            "timestamp": match_log["timestamp"],
+                            "date": log_date.isoformat() if log_date else None
+                        })
+                        logger.info(f"Auto-detected payment #{payment['payment_number']} from user {user_id} ({match_log['user_name']}) - {match_log['item_name']} in log {log_id}")
+                        
+                        # Check if all investors paid for this payment
+                        all_paid = all(inv["paid"] for inv in payment["investor_payments"])
+                        if all_paid:
+                            payment["paid"] = True
+                            payment["paid_date"] = datetime.utcnow().isoformat()
+                            payment["log_entry"] = "Auto-detected from logs"
+                        
+                        break  # Move to next log
+                
+                if log_id in used_log_ids:
+                    break  # This log has been used, move to next log
         
         # Update payment schedule if changes were made
         if updates_made > 0:
@@ -993,7 +1015,7 @@ async def check_events_for_payments(stock_id: str):
             "success": True,
             "updates_made": updates_made,
             "detected_logs": detected_logs,
-            "message": f"Detected {updates_made} payment(s) from logs"
+            "message": f"Detected {updates_made} payment(s) from {len(matching_logs)} log entries"
         }
     
     except HTTPException:
