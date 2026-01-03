@@ -366,8 +366,12 @@ export default function BuddyStocks() {
                     <Text style={styles.moneyValue}>{formatMoney(stock.blank_payment)}</Text>
                   </View>
                   <View style={styles.moneyItem}>
-                    <Text style={styles.moneyLabel}>Total Profit</Text>
-                    <Text style={styles.moneyProfit}>{formatMoney(stock.blake_total)}</Text>
+                    <Text style={styles.moneyLabel}>Payouts Received</Text>
+                    <Text style={styles.moneyValue}>{stock.payouts_received || 0} / {stock.total_payouts}</Text>
+                  </View>
+                  <View style={styles.moneyItem}>
+                    <Text style={styles.moneyLabel}>Total Received</Text>
+                    <Text style={styles.moneyProfit}>{formatMoney(stock.total_received || 0)}</Text>
                   </View>
                 </View>
 
