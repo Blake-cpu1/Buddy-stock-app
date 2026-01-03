@@ -70,11 +70,13 @@ export default function PaymentSchedule() {
   const handleMarkPaid = async (paymentNumber: number, investorUserId?: number) => {
     try {
       const params = investorUserId ? `?investor_user_id=${investorUserId}` : '';
-      await axios.put(`${API_URL}/api/stocks/${stockId}/payments/${paymentNumber}/mark-paid${params}`);
-      Alert.alert('Success', 'Payment marked as paid!');
+      const response = await axios.put(`${API_URL}/api/stocks/${stockId}/payments/${paymentNumber}/mark-paid${params}`);
+      
+      const action = response.data.paid ? 'marked as paid' : 'unmarked';
+      Alert.alert('Success', `Payment ${action}!`);
       fetchPayments();
     } catch (error: any) {
-      Alert.alert('Error', 'Failed to mark payment as paid');
+      Alert.alert('Error', 'Failed to toggle payment status');
     }
   };
 
