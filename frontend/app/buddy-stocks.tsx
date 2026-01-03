@@ -40,6 +40,8 @@ interface Stock {
   blank_payment: number;
   investors: Investor[];
   total_payouts: number;
+  payouts_received: number;
+  total_received: number;
   blake_total: number;
 }
 
