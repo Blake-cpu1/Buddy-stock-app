@@ -391,10 +391,15 @@ async def create_buddy_stock(buddy_stock: BuddyStockCreate):
         }
         
         result = await db.buddy_stocks.insert_one(buddy_stock_doc)
-        buddy_stock_doc["id"] = str(result.inserted_id)
         
         logger.info(f"Created buddy stock: {user_name} - {buddy_stock.item_name}")
-        return {"success": True, "buddy_stock": buddy_stock_doc}
+        return {
+            "success": True,
+            "buddy_stock": {
+                "id": str(result.inserted_id),
+                **buddy_stock_doc
+            }
+        }
     
     except HTTPException:
         raise
