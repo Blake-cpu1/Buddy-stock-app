@@ -198,17 +198,15 @@ export default function PaymentSchedule() {
               </View>
 
               <View style={styles.investorsSection}>
-                <Text style={styles.investorsTitle}>Investors:</Text>
                 {payment.investor_payments.map((inv, idx) => (
                   <View key={idx} style={styles.investorRowContainer}>
                     <View style={styles.investorRow}>
                       <View style={styles.investorInfo}>
                         <Text style={styles.investorName}>
-                          {inv.user_name} ({inv.split_percentage}%)
+                          {inv.user_name}
                         </Text>
                         <Text style={styles.investorAmount}>
-                          {formatMoney(inv.amount)}
-                          {inv.item_name && ` - ${inv.item_name}`}
+                          {inv.item_name || 'Item'} - {formatMoney(inv.amount)}
                         </Text>
                       </View>
                       <View style={styles.investorStatus}>
