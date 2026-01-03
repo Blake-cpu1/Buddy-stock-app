@@ -658,7 +658,8 @@ async def update_stock(stock_id: str, stock_update: StockUpdate):
             investors_with_names = []
             for inv in stock_update.investors:
                 try:
-                    user_data = await fetch_torn_api("user", f"basic&id={inv.user_id}")
+                    # Use user/{id} endpoint to get correct user info
+                    user_data = await fetch_torn_api(f"user/{inv.user_id}", "basic")
                     user_name = user_data.get("name", f"User {inv.user_id}")
                 except:
                     user_name = f"User {inv.user_id}"
