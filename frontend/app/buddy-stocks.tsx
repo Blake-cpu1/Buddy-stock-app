@@ -180,9 +180,23 @@ export default function BuddyStocks() {
     // Get buddy info from first investor
     const investor = stock.investors[0];
     setBuddyId(investor?.user_id?.toString() || '');
-    setItemName(investor?.item_name || '');
-    setItemId(investor?.item_id || null);
-    setItemValue(investor?.market_value || null);
+    
+    // Load items data - could be multiple items
+    if (investor?.items && investor.items.length > 0) {
+      setItemNames(investor.items.map((i: any) => i.name).join(', '));
+      setItemsData(investor.items);
+    } else if (investor?.item_name) {
+      // Legacy single item support
+      setItemNames(investor.item_name);
+      setItemsData([{
+        name: investor.item_name,
+        id: investor.item_id || 0,
+        value: investor.market_value || 0
+      }]);
+    } else {
+      setItemNames('');
+      setItemsData([]);
+    }
     
     setStartDate(stock.start_date);
     setDaysPerPayout(stock.days_per_payout.toString());
