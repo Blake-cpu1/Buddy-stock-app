@@ -355,7 +355,7 @@ export default function BuddyStocks() {
                     <Text style={styles.moneyValue}>{formatMoney(stock.payout_value)}</Text>
                   </View>
                   <View style={styles.moneyItem}>
-                    <Text style={styles.moneyLabel}>Blank Payment</Text>
+                    <Text style={styles.moneyLabel}>{stock.stock_name}</Text>
                     <Text style={styles.moneyValue}>{formatMoney(stock.blank_payment)}</Text>
                   </View>
                   <View style={styles.moneyItem}>
