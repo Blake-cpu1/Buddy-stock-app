@@ -395,6 +395,13 @@ const styles = StyleSheet.create({
   investorStatus: {
     marginLeft: 12,
   },
+  paidStatusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  autoDetectedIcon: {
+    marginRight: 4,
+  },
   logEntry: {
     marginTop: 12,
     padding: 10,
