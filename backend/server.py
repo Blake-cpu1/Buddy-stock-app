@@ -50,21 +50,39 @@ class APIKeyResponse(BaseModel):
     key_preview: Optional[str] = None
     is_disabled: Optional[bool] = False
 
-class BuddyStockCreate(BaseModel):
+class InvestorSplit(BaseModel):
     user_id: int
-    item_name: str
-    interval_days: int
+    user_name: str
+    split_percentage: float
+    amount_per_payout: int
+
+class BuddyStockCreate(BaseModel):
+    stock_name: str
+    start_date: str  # YYYY-MM-DD format
+    investment_length_days: int
+    days_per_payout: int
+    total_cost: int
+    payout_value: int
+    investors: list[InvestorSplit]
+
+class PaymentRecord(BaseModel):
+    payment_date: str
+    paid: bool = False
+    log_entry: Optional[str] = None
 
 class BuddyStockResponse(BaseModel):
     id: str
-    user_id: int
-    user_name: str
-    item_name: str
-    interval_days: int
-    last_received: Optional[datetime] = None
-    next_due: Optional[datetime] = None
-    days_until_due: Optional[int] = None
-    is_overdue: bool = False
+    stock_name: str
+    start_date: str
+    investment_length_days: int
+    days_per_payout: int
+    total_cost: int
+    payout_value: int
+    investors: list[InvestorSplit]
+    total_payouts: int
+    next_payout_date: Optional[str] = None
+    days_until_next: Optional[int] = None
+    payments: list[PaymentRecord] = []
 
 # Helper functions for rate limiting and caching
 def check_rate_limit() -> bool:
