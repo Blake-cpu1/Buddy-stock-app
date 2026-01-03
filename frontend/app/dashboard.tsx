@@ -140,9 +140,14 @@ export default function Dashboard() {
           <Text style={styles.headerTitle}>Dashboard</Text>
           <Text style={styles.headerSubtitle}>{data.profile.name}</Text>
         </View>
-        <TouchableOpacity onPress={() => router.push('/settings')} style={styles.settingsButton}>
-          <Ionicons name="settings-outline" size={24} color="#fff" />
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity onPress={() => router.push('/notifications')} style={styles.headerButton}>
+            <Ionicons name="notifications-outline" size={24} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/settings')} style={styles.headerButton}>
+            <Ionicons name="settings-outline" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
