@@ -261,9 +261,23 @@ export default function BuddyStocks() {
   };
 
   const formatMoney = (amount: number) => {
+    if (amount >= 1000000000) return `$${(amount / 1000000000).toFixed(2)}B`;
     if (amount >= 1000000) return `$${(amount / 1000000).toFixed(2)}M`;
     if (amount >= 1000) return `$${(amount / 1000).toFixed(0)}K`;
     return `$${amount}`;
+  };
+
+  // Calculate days to breakeven
+  const calculateDaysToBreakeven = (stock: Stock) => {
+    const { total_cost, payout_value, days_per_payout, total_received } = stock;
+    if (payout_value <= 0 || days_per_payout <= 0) return null;
+    
+    const remaining = total_cost - (total_received || 0);
+    if (remaining <= 0) return 0; // Already broken even
+    
+    const payoutsNeeded = Math.ceil(remaining / payout_value);
+    const daysNeeded = payoutsNeeded * days_per_payout;
+    return daysNeeded;
   };
 
   const formatDateUK = (dateStr: string) => {
