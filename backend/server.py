@@ -574,6 +574,25 @@ async def get_stock(stock_id: str):
         total_profit = (stock["payout_value"] * stock["total_payouts"]) - stock["total_cost"]
         stock["blake_total"] = total_profit
         
+        # Calculate days since start date
+        try:
+            start_date = datetime.strptime(stock["start_date"], "%Y-%m-%d").date()
+            current_date = datetime.utcnow().date()
+            days_since_start = (current_date - start_date).days
+            stock["days_since_start"] = max(1, days_since_start)  # At least 1 day
+        except:
+            stock["days_since_start"] = 1
+        
+        # Calculate annualized ROI percentage
+        total_cost = stock["total_cost"]
+        if total_cost > 0 and stock["days_since_start"] > 0:
+            profit = total_received - total_cost
+            roi_per_day = profit / total_cost / stock["days_since_start"]
+            annualized_roi = roi_per_day * 365 * 100  # Convert to percentage
+            stock["annualized_roi"] = round(annualized_roi, 2)
+        else:
+            stock["annualized_roi"] = 0.0
+        
         # Calculate next payout due date
         payment_schedule = stock.get("payment_schedule", [])
         next_payout_date = None
