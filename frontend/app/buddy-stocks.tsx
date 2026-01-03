@@ -360,8 +360,10 @@ export default function BuddyStocks() {
                     <Text style={styles.moneyValue}>{formatMoney(stock.blank_payment)}</Text>
                   </View>
                   <View style={styles.moneyItem}>
-                    <Text style={styles.moneyLabel}>Payouts Received</Text>
-                    <Text style={styles.moneyValue}>{stock.payouts_received || 0} / {stock.total_payouts}</Text>
+                    <Text style={styles.moneyLabel}>Payout Due</Text>
+                    <Text style={styles.moneyValue}>
+                      {stock.next_payout_due ? new Date(stock.next_payout_due).toLocaleDateString() : 'All paid'}
+                    </Text>
                   </View>
                   <View style={styles.moneyItem}>
                     <Text style={styles.moneyLabel}>Total Received</Text>
