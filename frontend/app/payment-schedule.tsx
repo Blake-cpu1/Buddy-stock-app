@@ -411,13 +411,36 @@ const styles = StyleSheet.create({
   },
   investorStatus: {
     marginLeft: 12,
-  },
-  paidStatusContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   autoDetectedIcon: {
     marginRight: 4,
+  },
+  investorRowContainer: {
+    marginBottom: 8,
+  },
+  detectionInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    marginLeft: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    backgroundColor: 'rgba(255, 193, 7, 0.1)',
+    borderRadius: 4,
+  },
+  detectionText: {
+    fontSize: 11,
+    color: '#ffc107',
+    marginLeft: 4,
+    flex: 1,
+  },
+  noLogText: {
+    fontSize: 11,
+    color: '#888',
+    marginLeft: 4,
+    fontStyle: 'italic',
   },
   logEntry: {
     marginTop: 12,
