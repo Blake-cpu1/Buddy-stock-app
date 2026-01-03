@@ -230,26 +230,40 @@ export default function BuddyStocks() {
   };
 
   const handleDeleteStock = async (stockId: string, stockName: string) => {
-    Alert.alert(
-      'Delete Stock',
-      `Are you sure you want to delete "${stockName}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await axios.delete(`${API_URL}/api/stocks/${stockId}`);
-              Alert.alert('Success', 'Stock deleted');
-              fetchStocks();
-            } catch (error) {
-              Alert.alert('Error', 'Failed to delete stock');
-            }
+    // Use window.confirm for web compatibility
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm(`Are you sure you want to delete "${stockName}"?`);
+      if (confirmed) {
+        try {
+          await axios.delete(`${API_URL}/api/stocks/${stockId}`);
+          alert('Stock deleted successfully');
+          fetchStocks();
+        } catch (error) {
+          alert('Failed to delete stock');
+        }
+      }
+    } else {
+      Alert.alert(
+        'Delete Stock',
+        `Are you sure you want to delete "${stockName}"?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await axios.delete(`${API_URL}/api/stocks/${stockId}`);
+                Alert.alert('Success', 'Stock deleted');
+                fetchStocks();
+              } catch (error) {
+                Alert.alert('Error', 'Failed to delete stock');
+              }
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    }
   };
 
   const formatMoney = (amount: number) => {
