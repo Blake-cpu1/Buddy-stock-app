@@ -182,16 +182,9 @@ export default function PaymentSchedule() {
       {/* Summary Stats */}
       <View style={styles.summaryBar}>
         <View style={styles.summaryItem}>
+          <Ionicons name="checkmark-circle" size={24} color="#4caf50" />
           <Text style={styles.summaryValue}>{paidPayments.length}</Text>
           <Text style={styles.summaryLabel}>Paid</Text>
-        </View>
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryValue}>{unpaidPayments.length}</Text>
-          <Text style={styles.summaryLabel}>Pending</Text>
-        </View>
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryValue}>{payments.length}</Text>
-          <Text style={styles.summaryLabel}>Total</Text>
         </View>
       </View>
 
