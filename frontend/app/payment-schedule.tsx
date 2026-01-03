@@ -23,6 +23,8 @@ interface InvestorPayment {
   amount: number;
   item_name?: string;
   paid: boolean;
+  detected_log_id?: string;
+  detected_log_text?: string;
 }
 
 interface Payment {
