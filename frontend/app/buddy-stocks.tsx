@@ -61,6 +61,7 @@ export default function BuddyStocks() {
   const [totalCost, setTotalCost] = useState('');
   const [payoutValue, setPayoutValue] = useState('');
   const [blankPayment, setBlankPayment] = useState('');
+  const [payoutsReceived, setPayoutsReceived] = useState('0');
   const [investorIds, setInvestorIds] = useState<string[]>(['']);
   const [investorSplits, setInvestorSplits] = useState<string[]>(['100']);
   const [investorItems, setInvestorItems] = useState<string[]>(['']);
@@ -72,6 +73,13 @@ export default function BuddyStocks() {
   useEffect(() => {
     fetchStocks();
   }, []);
+
+  // Auto-fill blank payment when stock name changes
+  useEffect(() => {
+    if (stockName && !editingStock) {
+      setBlankPayment(stockName);
+    }
+  }, [stockName]);
 
   const fetchStocks = async () => {
     try {
