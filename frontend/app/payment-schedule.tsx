@@ -137,12 +137,6 @@ export default function PaymentSchedule() {
       await axios.put(`${API_URL}/api/stocks/${stockId}/payments/${sendMoneyModal.paymentNumber}/mark-paid${params}`);
       setSendMoneyModal({ ...sendMoneyModal, visible: false });
       fetchPayments();
-      
-      if (Platform.OS === 'web') {
-        alert('Payment marked as paid!');
-      } else {
-        Alert.alert('Success', 'Payment marked as paid!');
-      }
     } catch (error) {
       Alert.alert('Error', 'Failed to mark payment');
     }
