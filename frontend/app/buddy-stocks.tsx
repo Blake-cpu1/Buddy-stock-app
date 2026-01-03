@@ -410,9 +410,15 @@ export default function BuddyStocks() {
             </View>
 
             <ScrollView style={styles.modalBody}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Stock Name</Text>
-                <TextInput style={styles.input} value={stockName} onChangeText={setStockName} placeholder="e.g., Casino Lease 1" placeholderTextColor="#666" />
+              <View style={styles.inputRow}>
+                <View style={styles.inputHalf}>
+                  <Text style={styles.label}>Buddy Name</Text>
+                  <TextInput style={styles.input} value={stockName} onChangeText={setStockName} placeholder="e.g., JAK86" placeholderTextColor="#666" />
+                </View>
+                <View style={styles.inputHalf}>
+                  <Text style={styles.label}>Buddy ID</Text>
+                  <TextInput style={styles.input} value={buddyId} onChangeText={setBuddyId} placeholder="e.g., 3549633" placeholderTextColor="#666" keyboardType="numeric" />
+                </View>
               </View>
 
               <View style={styles.inputGroup}>
@@ -430,88 +436,31 @@ export default function BuddyStocks() {
                 <TextInput style={styles.input} value={totalCost} onChangeText={setTotalCost} placeholder="1000000" placeholderTextColor="#666" keyboardType="numeric" />
               </View>
 
-              <View style={styles.inputRow}>
-                <View style={styles.inputHalf}>
-                  <Text style={styles.label}>Payout Value</Text>
-                  <TextInput style={styles.input} value={payoutValue} onChangeText={setPayoutValue} placeholder="150000" placeholderTextColor="#666" keyboardType="numeric" />
-                </View>
-                <View style={styles.inputHalf}>
-                  <Text style={styles.label}>Payouts Received</Text>
-                  <TextInput style={styles.input} value={payoutsReceived} onChangeText={setPayoutsReceived} placeholder="0" placeholderTextColor="#666" keyboardType="numeric" />
-                </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Payout Value</Text>
+                <TextInput style={styles.input} value={payoutValue} onChangeText={setPayoutValue} placeholder="150000" placeholderTextColor="#666" keyboardType="numeric" />
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>{stockName || 'Blank Payment'}</Text>
+                <Text style={styles.label}>{stockName || 'Buddy'} Payment</Text>
                 <TextInput style={styles.input} value={blankPayment} onChangeText={setBlankPayment} placeholder="50000" placeholderTextColor="#666" keyboardType="numeric" />
               </View>
 
-              <View style={styles.investorsSection}>
-                <View style={styles.investorsSectionHeader}>
-                  <Text style={styles.sectionTitle}>Investors (must total 100%)</Text>
-                  <TouchableOpacity onPress={addInvestorRow} style={styles.addInvestorBtn}>
-                    <Ionicons name="add-circle-outline" size={24} color="#4caf50" />
-                  </TouchableOpacity>
-                </View>
-
-                {investorIds.map((id, idx) => (
-                  <View key={idx} style={styles.investorRowContainer}>
-                    <View style={styles.investorRow}>
-                      <TextInput 
-                        style={[styles.input, styles.investorIdInput]} 
-                        value={id} 
-                        onChangeText={(text) => {
-                          const newIds = [...investorIds];
-                          newIds[idx] = text;
-                          setInvestorIds(newIds);
-                        }} 
-                        placeholder="User ID" 
-                        placeholderTextColor="#666" 
-                        keyboardType="numeric" 
-                      />
-                      
-                      <TextInput 
-                        style={[styles.input, styles.investorSplitInput]} 
-                        value={investorSplits[idx]} 
-                        onChangeText={(text) => {
-                          const newSplits = [...investorSplits];
-                          newSplits[idx] = text;
-                          setInvestorSplits(newSplits);
-                        }} 
-                        placeholder="%" 
-                        placeholderTextColor="#666" 
-                        keyboardType="numeric" 
-                      />
-                      
-                      {investorIds.length > 1 && (
-                        <TouchableOpacity onPress={() => removeInvestorRow(idx)}>
-                          <Ionicons name="remove-circle-outline" size={24} color="#f44336" />
-                        </TouchableOpacity>
-                      )}
-                    </View>
-
-                    <View style={styles.itemRow}>
-                      <TextInput 
-                        style={[styles.input, styles.itemInput]} 
-                        value={investorItems[idx]} 
-                        onChangeText={(text) => {
-                          const newItems = [...investorItems];
-                          newItems[idx] = text;
-                          setInvestorItems(newItems);
-                        }}
-                        onBlur={() => searchItemMarketValue(investorItems[idx], idx)}
-                        placeholder="Item name (e.g., Drug Pack)" 
-                        placeholderTextColor="#666" 
-                      />
-                    </View>
-
-                    {investorItemValues[idx] !== null && (
-                      <Text style={styles.marketValueText}>
-                        Market Value: {formatMoney(investorItemValues[idx]!)}
-                      </Text>
-                    )}
-                  </View>
-                ))}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Item Name (for auto-detect)</Text>
+                <TextInput 
+                  style={styles.input} 
+                  value={itemName} 
+                  onChangeText={setItemName}
+                  onBlur={() => searchItemMarketValue(itemName)}
+                  placeholder="e.g., Drug Pack" 
+                  placeholderTextColor="#666" 
+                />
+                {itemValue !== null && (
+                  <Text style={styles.marketValueText}>
+                    Market Value: {formatMoney(itemValue)}
+                  </Text>
+                )}
               </View>
 
               <TouchableOpacity 
