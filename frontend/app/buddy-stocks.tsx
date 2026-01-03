@@ -717,6 +717,22 @@ const styles = StyleSheet.create({
     marginLeft: 16,
     marginBottom: 4,
   },
+  viewPaymentsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2196f3',
+    padding: 14,
+    borderRadius: 8,
+    marginTop: 16,
+    justifyContent: 'space-between',
+  },
+  viewPaymentsText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#fff',
+    marginLeft: 10,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.9)',
