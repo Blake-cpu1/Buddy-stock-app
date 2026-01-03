@@ -202,25 +202,18 @@ export default function BuddyStocks() {
   const openEditModal = (stock: Stock) => {
     setEditingStock(stock);
     setStockName(stock.stock_name);
+    // Get buddy info from first investor
+    const investor = stock.investors[0];
+    setBuddyId(investor?.user_id?.toString() || '');
+    setItemName(investor?.item_name || '');
+    setItemId(investor?.item_id || null);
+    setItemValue(investor?.market_value || null);
+    
     setStartDate(stock.start_date);
     setDaysPerPayout(stock.days_per_payout.toString());
     setTotalCost(stock.total_cost.toString());
     setPayoutValue(stock.payout_value.toString());
     setBlankPayment(stock.blank_payment.toString());
-    setPayoutsReceived((stock.payouts_received || 0).toString());
-    
-    // Load investors
-    const ids = stock.investors.map(inv => inv.user_id.toString());
-    const splits = stock.investors.map(inv => inv.split_percentage.toString());
-    const items = stock.investors.map(inv => inv.item_name || '');
-    const values = stock.investors.map(inv => inv.market_value || null);
-    const itemIds = stock.investors.map(inv => inv.item_id || null);
-    
-    setInvestorIds(ids);
-    setInvestorSplits(splits);
-    setInvestorItems(items);
-    setInvestorItemValues(values);
-    setInvestorItemIds(itemIds);
     
     setModalVisible(true);
   };
