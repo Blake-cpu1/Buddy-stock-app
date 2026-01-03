@@ -374,7 +374,7 @@ export default function BuddyStocks() {
                   <View style={styles.moneyItem}>
                     <Text style={styles.moneyLabel}>Payout Due</Text>
                     <Text style={styles.moneyValue}>
-                      {stock.next_payout_due ? new Date(stock.next_payout_due).toLocaleDateString() : 'All paid'}
+                      {stock.next_payout_due ? formatDateUK(stock.next_payout_due) : 'All paid'}
                     </Text>
                   </View>
                   <View style={styles.moneyItem}>
