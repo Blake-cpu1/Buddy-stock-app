@@ -445,11 +445,16 @@ async def create_stock(stock: StockCreate):
             except:
                 user_name = f"User {inv.user_id}"
             
-            investors_with_names.append({
+            investor_data = {
                 "user_id": inv.user_id,
                 "user_name": user_name,
-                "split_percentage": inv.split_percentage
-            })
+                "split_percentage": inv.split_percentage,
+                "item_name": inv.item_name,
+                "item_id": inv.item_id,
+                "market_value": inv.market_value
+            }
+            
+            investors_with_names.append(investor_data)
         
         # Calculate total payouts
         total_payouts = stock.investment_length_days // stock.days_per_payout
