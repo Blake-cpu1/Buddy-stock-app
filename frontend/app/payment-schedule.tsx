@@ -175,10 +175,13 @@ export default function PaymentSchedule() {
                   <Text style={styles.paymentDate}>Due: {formatDate(payment.due_date)}</Text>
                 </View>
                 {payment.paid ? (
-                  <View style={styles.paidBadge}>
-                    <Ionicons name="checkmark-circle" size={24} color="#4caf50" />
-                    <Text style={styles.paidText}>Paid</Text>
-                  </View>
+                  <TouchableOpacity 
+                    style={styles.unmarkButton}
+                    onPress={() => handleMarkPaid(payment.payment_number)}
+                  >
+                    <Ionicons name="close-circle-outline" size={20} color="#fff" />
+                    <Text style={styles.unmarkButtonText}>Unmark</Text>
+                  </TouchableOpacity>
                 ) : (
                   <TouchableOpacity 
                     style={styles.markPaidButton}
