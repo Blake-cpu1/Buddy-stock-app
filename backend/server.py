@@ -50,13 +50,19 @@ class APIKeyResponse(BaseModel):
     key_preview: Optional[str] = None
     is_disabled: Optional[bool] = False
 
+class ItemData(BaseModel):
+    name: str
+    id: int
+    value: int
+
 class InvestorSplit(BaseModel):
     user_id: int
     user_name: Optional[str] = None  # Optional, will be fetched from API if not provided
     split_percentage: float
-    item_name: Optional[str] = None  # Item they're sending (e.g., "Drug Pack")
-    item_id: Optional[int] = None  # Torn item ID
-    market_value: Optional[int] = None  # Current market value
+    item_name: Optional[str] = None  # Item they're sending (e.g., "Drug Pack") - legacy single item
+    item_id: Optional[int] = None  # Torn item ID - legacy single item
+    market_value: Optional[int] = None  # Current market value - legacy single item
+    items: Optional[list[ItemData]] = None  # New: multiple items support
 
 class StockCreate(BaseModel):
     stock_name: str
