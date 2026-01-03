@@ -549,6 +549,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#333',
   },
+  paymentCardDueToday: {
+    backgroundColor: '#2e2a1a',
+    borderColor: '#ffc107',
+    borderWidth: 2,
+  },
   paidPaymentCard: {
     backgroundColor: '#1a2e1a',
     borderColor: '#2d4a2d',
@@ -575,6 +580,26 @@ const styles = StyleSheet.create({
   dueDateContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  dueDateToday: {
+    backgroundColor: 'rgba(255, 193, 7, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  todayBadge: {
+    backgroundColor: '#ffc107',
+    color: '#000',
+    fontSize: 10,
+    fontWeight: 'bold',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  dueDateTextToday: {
+    color: '#ffc107',
+    fontWeight: '600',
   },
   dueDate: {
     fontSize: 14,
