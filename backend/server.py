@@ -716,7 +716,7 @@ def generate_payment_schedule(stock: dict) -> list:
     return payments
 
 @api_router.get("/stocks/{stock_id}/payments")
-async def get_payment_schedule(stock_id: str):
+async def get_payment_schedule(stock_id: str, regenerate: bool = False):
     """Get payment schedule for a stock"""
     try:
         from bson import ObjectId
@@ -725,13 +725,14 @@ async def get_payment_schedule(stock_id: str):
         if not stock:
             raise HTTPException(status_code=404, detail="Stock not found")
         
-        # Check if payment schedule exists, if not generate it
-        if "payment_schedule" not in stock:
+        # Check if payment schedule needs regeneration
+        if "payment_schedule" not in stock or regenerate:
             payment_schedule = generate_payment_schedule(stock)
             await db.stocks.update_one(
                 {"_id": ObjectId(stock_id)},
                 {"$set": {"payment_schedule": payment_schedule}}
             )
+            logger.info(f"Regenerated payment schedule for stock {stock_id}")
         else:
             payment_schedule = stock["payment_schedule"]
         
