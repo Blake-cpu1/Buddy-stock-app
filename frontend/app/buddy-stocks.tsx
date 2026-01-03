@@ -441,7 +441,7 @@ export default function BuddyStocks() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Blank Payment</Text>
+                <Text style={styles.label}>{stockName || 'Blank Payment'}</Text>
                 <TextInput style={styles.input} value={blankPayment} onChangeText={setBlankPayment} placeholder="50000" placeholderTextColor="#666" keyboardType="numeric" />
               </View>
 
