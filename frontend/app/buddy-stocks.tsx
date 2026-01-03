@@ -169,6 +169,7 @@ export default function BuddyStocks() {
         total_cost: parseInt(totalCost),
         payout_value: parseInt(payoutValue),
         blank_payment: parseInt(blankPayment),
+        payouts_received: parseInt(payoutsReceived),
         investors,
       };
 
