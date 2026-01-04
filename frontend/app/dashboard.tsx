@@ -8,11 +8,29 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Alert,
+  Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
 import Constants from 'expo-constants';
 import { Ionicons } from '@expo/vector-icons';
+
+// Torn URLs for TornPDA
+const TORN_URLS = {
+  drugArmoury: 'https://www.torn.com/factions.php?step=your&type=1#/tab=armoury',
+  medicalArmoury: 'https://www.torn.com/factions.php?step=your&type=1#/tab=armoury',
+  boosterItems: 'https://www.torn.com/item.php',
+  pointsMarket: 'https://www.torn.com/page.php?sid=points',
+  companyFunds: 'https://www.torn.com/companies.php?step=your&type=1#/option=funds',
+  gym: 'https://www.torn.com/gym.php',
+  crimes: 'https://www.torn.com/page.php?sid=crimes#/',
+};
+
+// Max cooldown times in seconds
+const MAX_COOLDOWNS = {
+  medical: 6 * 60 * 60,    // 6 hours
+  booster: 48 * 60 * 60,   // 48 hours
+};
 
 const API_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
 
