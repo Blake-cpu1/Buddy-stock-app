@@ -407,8 +407,8 @@ export default function Dashboard() {
             <Ionicons name="stats-chart-outline" size={24} color="#2196f3" />
             <Text style={styles.cardTitle}>Status Bars</Text>
           </View>
-          {renderProgressBar('Energy', data.bars.energy.current, data.bars.energy.maximum, '#4caf50')}
-          {renderProgressBar('Nerve', data.bars.nerve.current, data.bars.nerve.maximum, '#ff9800')}
+          {renderProgressBar('Energy', data.bars.energy.current, data.bars.energy.maximum, '#4caf50', TORN_URLS.gym)}
+          {renderProgressBar('Nerve', data.bars.nerve.current, data.bars.nerve.maximum, '#ff9800', TORN_URLS.crimes)}
           {renderProgressBar('Happy', data.bars.happy.current, data.bars.happy.maximum, '#e91e63')}
           {renderProgressBar('Life', data.bars.life.current, data.bars.life.maximum, '#f44336')}
         </View>
