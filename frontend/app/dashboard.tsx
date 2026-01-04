@@ -84,6 +84,12 @@ interface DashboardData {
     nerve_refill_used: boolean;
     token_refill_used: boolean;
   };
+  travel: {
+    destination: string;
+    timestamp: number;
+    departed: number;
+    time_left: number;
+  };
   battle_stats: {
     strength: number;
     defense: number;
