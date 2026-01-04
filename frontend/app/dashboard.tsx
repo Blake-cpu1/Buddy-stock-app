@@ -251,10 +251,14 @@ export default function Dashboard() {
               style={styles.cooldownItem}
               onPress={() => {
                 if (data.cooldowns.drug <= 0) {
-                  Alert.alert('💊 Drug Cooldown Ready', 'Be sure to take your drugs!');
+                  Alert.alert('💊 Drug Cooldown Ready', 'Be sure to take your drugs!', [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Go to Armoury', onPress: () => openTornUrl(TORN_URLS.drugArmoury) }
+                  ]);
+                } else {
+                  openTornUrl(TORN_URLS.drugArmoury);
                 }
               }}
-              activeOpacity={data.cooldowns.drug <= 0 ? 0.7 : 1}
             >
               <Ionicons name="medical-outline" size={20} color={data.cooldowns.drug <= 0 ? '#4caf50' : '#ff9800'} />
               <Text style={styles.cooldownLabel}>Drug</Text>
@@ -271,15 +275,19 @@ export default function Dashboard() {
               style={styles.cooldownItem}
               onPress={() => {
                 if (data.cooldowns.medical <= 0) {
-                  Alert.alert('🏥 Medical Cooldown Ready', 'Medical cooldown is ready to use!');
+                  Alert.alert('🏥 Medical Cooldown Ready', 'Medical cooldown is ready to use!', [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Go to Armoury', onPress: () => openTornUrl(TORN_URLS.medicalArmoury) }
+                  ]);
+                } else {
+                  openTornUrl(TORN_URLS.medicalArmoury);
                 }
               }}
-              activeOpacity={data.cooldowns.medical <= 0 ? 0.7 : 1}
             >
               <Ionicons name="bandage-outline" size={20} color={data.cooldowns.medical <= 0 ? '#4caf50' : '#ff9800'} />
               <Text style={styles.cooldownLabel}>Medical</Text>
               <Text style={[styles.cooldownValue, data.cooldowns.medical <= 0 && styles.cooldownReady]}>
-                {formatCooldown(data.cooldowns.medical)}
+                {formatCooldownWithMax(data.cooldowns.medical, MAX_COOLDOWNS.medical)}
               </Text>
               {data.cooldowns.medical <= 0 && (
                 <View style={styles.cooldownAlert}>
@@ -291,15 +299,19 @@ export default function Dashboard() {
               style={styles.cooldownItem}
               onPress={() => {
                 if (data.cooldowns.booster <= 0) {
-                  Alert.alert('🚀 Booster Cooldown Ready', 'Be sure to max your booster!');
+                  Alert.alert('🚀 Booster Cooldown Ready', 'Be sure to max your booster!', [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Go to Items', onPress: () => openTornUrl(TORN_URLS.boosterItems) }
+                  ]);
+                } else {
+                  openTornUrl(TORN_URLS.boosterItems);
                 }
               }}
-              activeOpacity={data.cooldowns.booster <= 0 ? 0.7 : 1}
             >
               <Ionicons name="rocket-outline" size={20} color={data.cooldowns.booster <= 0 ? '#4caf50' : '#ff9800'} />
               <Text style={styles.cooldownLabel}>Booster</Text>
               <Text style={[styles.cooldownValue, data.cooldowns.booster <= 0 && styles.cooldownReady]}>
-                {formatCooldown(data.cooldowns.booster)}
+                {formatCooldownWithMax(data.cooldowns.booster, MAX_COOLDOWNS.booster)}
               </Text>
               {data.cooldowns.booster <= 0 && (
                 <View style={styles.cooldownAlert}>
