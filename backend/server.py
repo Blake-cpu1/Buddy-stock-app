@@ -333,10 +333,10 @@ async def get_api_key_status():
 async def get_dashboard_data():
     """Get all dashboard data in one request"""
     try:
-        # Fetch comprehensive user data including refills
+        # Fetch comprehensive user data including refills and travel
         data = await fetch_torn_api(
             "user",
-            "basic,personalstats,bars,cooldowns,notifications,money,networth,battlestats,refills"
+            "basic,personalstats,bars,cooldowns,notifications,money,networth,battlestats,refills,travel"
         )
         
         # Get city_bank data for bank investment term
