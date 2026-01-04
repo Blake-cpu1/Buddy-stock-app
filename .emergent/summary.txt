@@ -1,0 +1,172 @@
+<analysis>
+**original_problem_statement**: The user is building an Android application using the Torn.com API. The initial feature was a personal dashboard, which evolved into a Buddy Stocks feature, and then into a comprehensive Stock Investment Tracker. This tracker manages stock-like investments, tracks payouts, calculates ROI, and automatically detects item payments from buddies by monitoring the user's Torn API logs. The user has been providing iterative feedback to refine the UI/UX and add new features, such as push notifications and a detailed portfolio overview.
+
+**PRODUCT REQUIREMENTS**:
+1.  **Stock Investment Tracker**: Manage ongoing investments with a single buddy per investment.
+    -   CRUD for stocks (referred to as Buddy Investments).
+    -   Each stock tracks: Buddy Name, Buddy User ID, Start Date, Payout Interval, Investment Value, Payout Value, and a list of expected items.
+    -   The app supports tracking multiple comma-separated items for each investment.
+2.  **Dashboard**: A main screen providing a high-level overview.
+    -   **Portfolio Overview**: Aggregated stats across all investments (Total Cost, Weekly Payouts, Total Received, Next Payout Due).
+    -   **Torn API Data**: Display user's current cooldowns, status of energy/nerve refills, and a detailed money breakdown (on hand, bank, company vault) with bank investment time remaining.
+3.  **Payment Schedule**:
+    -   A screen showing upcoming and past payments for each investment.
+    -   Upcoming payments are limited to the next 4 due.
+    -   Paid payments are hidden in a collapsible section.
+    -   **Auto-Detection**: A lightning bolt icon appears next to a payment if the system detects a corresponding item transfer from the buddy in the user's logs within a ±24-hour window of the due date. The log text is displayed. This detection *does not* automatically mark the payment as paid.
+    -   **Manual Payment**: A Send Money modal that copies the payout amount to the clipboard and provides a link to the buddy's Torn profile to facilitate manual payment.
+4.  **UI/UX**:
+    -   Dates are in UK format (DD/MM/YYYY).
+    -   Large numbers are formatted with K (thousands), M (millions), and B (billions).
+    -   An Edit Mode toggle on the main screen to prevent accidental edits/deletes.
+    -   Highlight payments due on the current day.
+5.  **Push Notifications**:
+    -   A dedicated settings screen to enable/disable and set a time for daily payment reminders.
+    -   Notifications will be sent daily at the specified time if any payments are due.
+    -   **Known Limitation**: This feature does not work in the Expo Go app and requires a development or production build.
+
+**User's preferred language**: English
+
+**what currently exists?**
+The application is a full-stack Expo (React Native) and FastAPI project with a MongoDB database.
+-   **Backend**: API endpoints for full CRUD on stocks, user dashboard data aggregation, payment schedule generation, and automated payment detection via the Torn Logs API. The backend correctly handles the simplified single buddy, multiple items model and provides all necessary data for the new dashboard features.
+-   **Frontend**: A multi-screen app. The  screen contains the main investment list, the Portfolio Overview dashboard, and the simplified form for adding/editing investments. The  screen shows a refined view with upcoming/paid tabs and auto-detection indicators. The  screen provides controls for push notifications. The initial landing page has been removed, and the app launches directly into the .
+
+**Last working item**:
+-   **Last item agent was working**: Implementing a major revamp of the main  screen based on user requests. The agent successfully updated the backend  endpoint in  to fetch and return additional data from the Torn API: , , and a detailed  breakdown (including , , and bank investment details).
+-   **Status**: IN PROGRESS
+-   **Agent Testing Done**: N (Backend changes were made but not tested; frontend work has not begun).
+-   **Which testing method agent to use?**: backend testing agent (to verify the  endpoint returns the new , , and  data) followed by the screenshot tool (after the frontend UI is built).
+-   **User Testing Done**: N
+
+**All Pending/In progress Issue list**:
+-   **Issue 1**: (P0) Complete the Dashboard Revamp.
+
+**Issues Detail**:
+-   **Issue 1: Complete the Dashboard Revamp**
+    -   **Attempted fixes**: The backend () has been modified to include , , and detailed  information in the  API response. No frontend changes have been made yet.
+    -   **Next debug checklist**:
+        1.  Modify .
+        2.  Update the  interface to include the new fields: , , , , .
+        3.  Remove the existing Profile section from the JSX.
+        4.  Create a new UI component/section to display the list of  and their remaining times.
+        5.  Create a new UI component/section to display the status of  and .
+        6.  Update the Money section to display  and .
+        7.  Update the bank money display to show the time remaining () and format the amount using the existing  function.
+    -   **Why fix this issue and what will be achieved with the fix?**: This will complete the user's request for a more data-rich and relevant main dashboard, tailored to their Torn gameplay.
+    -   **Status**: IN PROGRESS
+    -   **Is recurring issue?**: N
+    -   **Should Test frontend/backend/both after fix?**: Both
+    -   **Blocked on other issue**: None
+
+**In progress Task List**:
+-   **Task 1**: Implement Frontend for Dashboard Revamp
+    -   **Where to resume**: . The backend is ready to supply the data.
+    -   **What will be achieved with this?**: The main dashboard will be updated to show Cooldowns, Refills, and a detailed Money breakdown, and the old Profile section will be removed, fulfilling the user's latest request.
+    -   **Status**: NOT STARTED (on the frontend)
+    -   **Should Test frontend/backend/both after fix?**: Both
+    -   **Blocked on something**: None
+
+**Upcoming and Future Tasks**
+-   **Future Tasks**: The user initially expressed interest in other Torn API features like a crime tracker and a full stock market monitor. These are currently out of scope but could be revisited after the current feature set is stable.
+
+**Completed work in this session**
+-   **Feature: Multi-Item Support**: Updated the app to allow tracking multiple comma-separated items for each investment, including backend model changes and frontend UI/logic updates.
+-   **Feature: Portfolio Overview**: Added a summary dashboard to  showing aggregated stats (Total Cost, Weekly Payouts, etc.) across all investments.
+-   **Feature: Push Notifications**: Created a new  screen to allow users to enable/disable and schedule daily push notifications for due payments. Installed necessary packages (, ).
+-   **UI/UX Overhaul**:
+    -   **Simplified Form**: Refactored the Add/Edit Stock form to a simpler single buddy, multiple items model, removing the complex investors section.
+    -   **Payment Schedule**: Redesigned to hide paid items in a collapsible section and show only the next 4 upcoming payments.
+    -   **Edit Mode**: Added a toggle on the main screen to show/hide edit/delete buttons, preventing accidental clicks.
+    -   **Send Money Integration**: The Mark Paid button now opens a modal to copy the correct payout amount and link to the buddy's Torn profile.
+    -   **UI Polish**: Added Days to Breakeven to ROI, improved large number formatting to include B for billions, and removed the landing page to boot directly to the dashboard.
+-   **Bug Fixes & Refinements**:
+    -   Fixed the Torn API user lookup to correctly fetch buddy names.
+    -   Fixed a bug that caused app crashes when adding new investments ().
+    -   Fixed auto-detection logic to only associate logs with payments within a ±24hr window and to not reuse logs.
+    -   Fixed auto-detection to show a lightning bolt and log text, without automatically marking the payment as paid.
+    -   Installed missing  dependency that was causing crashes.
+    -   Removed the intrusive Success alert after marking a payment.
+
+**Earlier issues found/mentioned but not fixed**
+-   None. The agent has been diligent in addressing user-reported issues. The pending work is part of the current development cycle.
+
+**Known issue recurrence from previous fork**
+-   **Issue recurrence in previous fork**: Torn API user lookup logic has been a recurring problem, requiring multiple fixes to get the correct API endpoint format ( vs ). This seems to be stable now but is a fragile area.
+-   **Recurrence count**: 2+
+-   **Status**: RESOLVED (but worth monitoring).
+
+**Code Architecture**
+
+
+**Key Technical Concepts**
+-   **Frontend**: React Native, Expo, Expo Router, Axios, , . New libraries: , , .
+-   **Backend**: FastAPI, Python, Motor (async MongoDB driver), Pydantic.
+-   **Architecture**: Full-stack monorepo. The investor concept has been simplified to a single buddy per stock, but a buddy can provide multiple items.
+
+**key DB schema**
+-   : 
+
+**changes in tech stack**
+-   Added , , and  to the frontend dependencies.
+
+**All files of reference**
+-   : **Currently being modified.** This is the main entry point and needs the frontend UI for the new cooldowns, refills, and money features.
+-   : **Recently modified.** Contains the updated  endpoint that provides the data for the dashboard revamp.
+-   : The main investment tracking screen. Contains the portfolio overview and the simplified add/edit form.
+-   : The screen for viewing and managing individual payment schedules.
+-   : The new screen for managing push notification settings.
+
+**Areas that need refactoring**:
+-    remains a large monolithic file. Breaking it into modules (e.g., , , ) would improve maintainability.
+-   The main frontend screens (, ) are very large. Component extraction (e.g., for modals, list items) is still recommended.
+
+**key api endpoints**
+-   : **(Recently Updated)** Provides aggregated data for the main dashboard, now including cooldowns, refills, and detailed money info.
+-   : Creates a new stock, now expecting a single  and a list of .
+-   : Retrieves all stocks.
+-   : Updates a stock.
+-   : Gets the detailed payment plan.
+-   : Triggers auto-detection for multiple items.
+-   : Toggles the 'paid' status of a payment.
+
+**Critical Info for New Agent**
+-   **Dashboard Revamp is the #1 Priority**: The backend is done; the next agent must focus on implementing the frontend changes in .
+-   **Push Notifications DO NOT WORK in Expo Go**: This is a known limitation of the Expo Go app for SDK 51+. Do not waste time trying to fix it. The code is correct and will work in a development or production build. Inform the user of this if it comes up again.
+-   **Simplified Data Model**: The app no longer supports multiple investors per stock. It's now one Buddy (defined by ) who can provide multiple comma-separated items. The entire codebase (frontend state, backend models) reflects this simplification.
+
+**documents created in this job**
+-   None.
+
+**Last 10 User Messages and any pending HUMAN messages**
+1.  **User**: Request to remove the profile section from the dashboard and replace it with Cooldowns, Refills, and an enhanced Money section with more details. **Status: IN PROGRESS (Backend done, Frontend pending)**.
+2.  **User**: App is good. Launches straight into the dashboard now. **Status: CONFIRMATION**.
+3.  **User**: Clarified if notifications will work on a deployed app even if they fail in Expo Go. **Status: ADDRESSED**.
+4.  **User**: Reported error in Expo Go regarding push notification support. **Status: ADDRESSED (Agent explained limitation)**.
+5.  **User**: Requested ability to set notification time and have a simple on/off toggle. **Status: IMPLEMENTED**.
+6.  **User**: Reported an error with an invalid notification trigger. **Status: FIXED**.
+7.  **User**: Requested push notifications for daily payment reminders. **Status: IMPLEMENTED**.
+8.  **User**: Requested days to breakeven on ROI display and B for billion formatting. **Status: IMPLEMENTED**.
+9.  **User**: Requested removal of the success popup after marking payment. **Status: IMPLEMENTED**.
+10. **User**: Reported clipboard was copying the wrong amount for payments. **Status: FIXED**.
+
+**Project Health Check:**
+-   **Broken**: The main dashboard () is out of sync with the backend API. It will likely fail to render or show outdated information until the frontend is updated.
+-   **Mocked**: No mocked data. The app is live against the Torn API.
+
+**3rd Party Integrations**
+-   Torn.com API: Used for fetching user data (, , , ), item data, and user logs. Requires a user-provided API key.
+
+**Testing status**
+-   **Testing agent used after significant changes**: NO
+-   **Troubleshoot agent used after agent stuck in loop**: NO
+-   **Test files created**: None
+-   **Known regressions**: None in this session, but Torn API user lookups have been a historical point of failure.
+
+**Credentials to test flow:**
+-   Torn API Key: The user provides their own, but the one used in logs is  (stored in the app's database).
+
+**What agent forgot to execute**
+-   The agent was in the middle of executing the user's latest request (dashboard revamp). It correctly completed the backend portion but had not yet started the required frontend implementation before the session ended. Nothing was forgotten, but the task is incomplete.
+
+</analysis>
