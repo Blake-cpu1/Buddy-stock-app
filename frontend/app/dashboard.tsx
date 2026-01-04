@@ -606,6 +606,65 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
   },
+  // Travel Card
+  travelCard: {
+    borderWidth: 1,
+    borderColor: '#2196f3',
+  },
+  inTornCard: {
+    borderColor: '#4caf50',
+  },
+  travelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  travelProgressContainer: {
+    flex: 1,
+    marginRight: 16,
+  },
+  travelTimeText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 8,
+  },
+  travelProgressBar: {
+    height: 24,
+    backgroundColor: '#333',
+    borderRadius: 12,
+    overflow: 'hidden',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  travelProgressFill: {
+    height: '100%',
+    backgroundColor: '#ccc',
+    borderRadius: 12,
+  },
+  travelPlaneIcon: {
+    position: 'absolute',
+    right: 8,
+  },
+  travelFlag: {
+    fontSize: 32,
+  },
+  travelArrivalText: {
+    fontSize: 16,
+    color: '#2196f3',
+  },
+  inTornContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  inTornText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#4caf50',
+    marginLeft: 12,
+  },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
