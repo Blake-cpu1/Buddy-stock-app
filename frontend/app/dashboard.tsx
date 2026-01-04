@@ -25,6 +25,7 @@ const TORN_URLS = {
   gym: 'https://www.torn.com/gym.php',
   crimes: 'https://www.torn.com/page.php?sid=crimes#/',
   travel: 'https://www.torn.com/travelagency.php',
+  tornHome: 'https://www.torn.com',
 };
 
 // Max cooldown times in seconds
