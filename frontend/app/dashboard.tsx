@@ -9,11 +9,17 @@ import {
   TouchableOpacity,
   Alert,
   Linking,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
 import Constants from 'expo-constants';
 import { Ionicons } from '@expo/vector-icons';
+import { 
+  showTravelNotification, 
+  dismissTravelNotification,
+  setupTravelNotificationChannel 
+} from '../services/travelNotification';
 
 // Torn URLs for TornPDA
 const TORN_URLS = {
