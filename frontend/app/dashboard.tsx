@@ -675,7 +675,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#555',
     borderRadius: 14,
   },
-  travelPlaneIcon: {
+  travelPlaneContainer: {
     position: 'absolute',
     top: 4,
   },
