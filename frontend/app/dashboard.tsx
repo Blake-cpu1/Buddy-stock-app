@@ -168,15 +168,10 @@ export default function Dashboard() {
 
   const openTornUrl = async (url: string) => {
     try {
-      const supported = await Linking.canOpenURL(url);
-      if (supported) {
-        await Linking.openURL(url);
-      } else {
-        Alert.alert('Error', 'Cannot open this URL');
-      }
+      await Linking.openURL(url);
     } catch (error) {
       console.error('Error opening URL:', error);
-      Alert.alert('Error', 'Failed to open link');
+      Alert.alert('Error', 'Failed to open link. Please make sure you have a browser or TornPDA installed.');
     }
   };
 
