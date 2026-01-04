@@ -333,11 +333,14 @@ async def get_api_key_status():
 async def get_dashboard_data():
     """Get all dashboard data in one request"""
     try:
-        # Fetch comprehensive user data
+        # Fetch comprehensive user data including refills
         data = await fetch_torn_api(
             "user",
-            "basic,personalstats,bars,cooldowns,notifications,money,networth,battlestats"
+            "basic,personalstats,bars,cooldowns,notifications,money,networth,battlestats,refills"
         )
+        
+        # Get city_bank data for bank investment term
+        money_data = data.get("city_bank", {})
         
         # Process and structure the response
         dashboard_data = {
@@ -379,10 +382,22 @@ async def get_dashboard_data():
                 },
             },
             "money": {
-                "cash": data.get("money", 0),
+                "cash": data.get("money_onhand", 0),
                 "points": data.get("points", 0),
-                "bank": data.get("networth", {}).get("bank", 0),
+                "bank": money_data.get("amount", 0),
+                "bank_time_left": money_data.get("time_left", 0),
+                "company_funds": data.get("company_funds", 0),
                 "networth": data.get("networth", {}).get("total", 0),
+            },
+            "cooldowns": {
+                "drug": data.get("cooldowns", {}).get("drug", 0),
+                "medical": data.get("cooldowns", {}).get("medical", 0),
+                "booster": data.get("cooldowns", {}).get("booster", 0),
+            },
+            "refills": {
+                "energy_refill_used": data.get("refills", {}).get("energy_refill_used", False),
+                "nerve_refill_used": data.get("refills", {}).get("nerve_refill_used", False),
+                "token_refill_used": data.get("refills", {}).get("token_refill_used", False),
             },
             "battle_stats": {
                 "strength": data.get("strength", 0),
@@ -391,7 +406,6 @@ async def get_dashboard_data():
                 "dexterity": data.get("dexterity", 0),
                 "total": data.get("total", 0),
             },
-            "cooldowns": data.get("cooldowns", {}),
             "notifications": data.get("notifications", {}),
             "last_updated": datetime.utcnow().isoformat()
         }
