@@ -514,6 +514,11 @@ const styles = StyleSheet.create({
   cooldownReady: {
     color: '#4caf50',
   },
+  cooldownAlert: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+  },
   refillsDivider: {
     height: 1,
     backgroundColor: '#333',
