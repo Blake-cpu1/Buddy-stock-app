@@ -24,12 +24,29 @@ const TORN_URLS = {
   companyFunds: 'https://www.torn.com/companies.php?step=your&type=1#/option=funds',
   gym: 'https://www.torn.com/gym.php',
   crimes: 'https://www.torn.com/page.php?sid=crimes#/',
+  travel: 'https://www.torn.com/travelagency.php',
 };
 
 // Max cooldown times in seconds
 const MAX_COOLDOWNS = {
   medical: 6 * 60 * 60,    // 6 hours
   booster: 48 * 60 * 60,   // 48 hours
+};
+
+// Country flags mapping (emoji flags)
+const COUNTRY_FLAGS: { [key: string]: string } = {
+  'Mexico': '🇲🇽',
+  'Cayman Islands': '🇰🇾',
+  'Canada': '🇨🇦',
+  'Hawaii': '🇺🇸',
+  'United Kingdom': '🇬🇧',
+  'Argentina': '🇦🇷',
+  'Switzerland': '🇨🇭',
+  'Japan': '🇯🇵',
+  'China': '🇨🇳',
+  'UAE': '🇦🇪',
+  'South Africa': '🇿🇦',
+  'Torn': '🏠',
 };
 
 const API_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
