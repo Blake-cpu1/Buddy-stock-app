@@ -406,6 +406,12 @@ async def get_dashboard_data():
                 "dexterity": data.get("dexterity", 0),
                 "total": data.get("total", 0),
             },
+            "travel": {
+                "destination": data.get("travel", {}).get("destination", ""),
+                "timestamp": data.get("travel", {}).get("timestamp", 0),  # Arrival time as Unix timestamp
+                "departed": data.get("travel", {}).get("departed", 0),    # Departure time as Unix timestamp
+                "time_left": data.get("travel", {}).get("time_left", 0),  # Seconds remaining
+            },
             "notifications": data.get("notifications", {}),
             "last_updated": datetime.utcnow().isoformat()
         }
