@@ -314,12 +314,13 @@ export default function Dashboard() {
                         { width: `${progressPercent}%` }
                       ]} 
                     />
-                    <Ionicons 
-                      name="airplane" 
-                      size={20} 
-                      color="#2196f3" 
-                      style={[styles.travelPlaneIcon, { left: `${Math.min(progressPercent, 92)}%` }]} 
-                    />
+                    <View style={[styles.travelPlaneContainer, { left: `${Math.min(progressPercent, 90)}%` }]}>
+                      <Ionicons 
+                        name="airplane" 
+                        size={20} 
+                        color="#2196f3" 
+                      />
+                    </View>
                   </View>
                 </View>
               </View>
