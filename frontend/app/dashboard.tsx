@@ -112,9 +112,25 @@ export default function Dashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
 
+  // Setup notification channel on mount
+  useEffect(() => {
+    setupTravelNotificationChannel();
+  }, []);
+
   useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  // Update travel notification when travel data changes
+  useEffect(() => {
+    if (data?.travel && Platform.OS !== 'web') {
+      if (data.travel.time_left > 0 && data.travel.destination !== 'Torn') {
+        showTravelNotification(data.travel);
+      } else {
+        dismissTravelNotification();
+      }
+    }
+  }, [data?.travel]);
 
   const fetchDashboardData = async () => {
     try {
