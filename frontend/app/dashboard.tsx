@@ -158,6 +158,28 @@ export default function Dashboard() {
     return `${minutes}m left`;
   };
 
+  const formatCooldownWithMax = (seconds: number, maxSeconds: number | null) => {
+    const current = formatCooldown(seconds);
+    if (!maxSeconds) return current;
+    
+    const maxHours = Math.floor(maxSeconds / 3600);
+    return seconds <= 0 ? `Ready / ${maxHours}h` : `${current} / ${maxHours}h`;
+  };
+
+  const openTornUrl = async (url: string) => {
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Error', 'Cannot open this URL');
+      }
+    } catch (error) {
+      console.error('Error opening URL:', error);
+      Alert.alert('Error', 'Failed to open link');
+    }
+  };
+
   const renderProgressBar = (label: string, current: number, maximum: number, color: string) => {
     const percentage = maximum > 0 ? (current / maximum) * 100 : 0;
     return (
