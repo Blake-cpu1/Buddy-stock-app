@@ -180,9 +180,9 @@ export default function Dashboard() {
     }
   };
 
-  const renderProgressBar = (label: string, current: number, maximum: number, color: string) => {
+  const renderProgressBar = (label: string, current: number, maximum: number, color: string, url?: string) => {
     const percentage = maximum > 0 ? (current / maximum) * 100 : 0;
-    return (
+    const content = (
       <View style={styles.barContainer}>
         <View style={styles.barHeader}>
           <Text style={styles.barLabel}>{label}</Text>
@@ -195,6 +195,15 @@ export default function Dashboard() {
         </View>
       </View>
     );
+    
+    if (url) {
+      return (
+        <TouchableOpacity onPress={() => openTornUrl(url)}>
+          {content}
+        </TouchableOpacity>
+      );
+    }
+    return content;
   };
 
   if (loading) {
