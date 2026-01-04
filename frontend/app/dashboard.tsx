@@ -265,6 +265,54 @@ export default function Dashboard() {
         style={styles.scrollView}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#d32f2f" />}
       >
+        {/* Travel Card - Only show when traveling */}
+        {data.travel && data.travel.time_left > 0 && (
+          <TouchableOpacity 
+            style={[styles.card, styles.travelCard]}
+            onPress={() => openTornUrl(TORN_URLS.travel)}
+          >
+            <View style={styles.travelHeader}>
+              <View style={styles.travelProgressContainer}>
+                <Text style={styles.travelTimeText}>{formatCooldown(data.travel.time_left)}</Text>
+                <View style={styles.travelProgressBar}>
+                  <View 
+                    style={[
+                      styles.travelProgressFill, 
+                      { 
+                        width: `${Math.max(0, Math.min(100, 
+                          ((data.travel.timestamp - data.travel.departed) - data.travel.time_left) / 
+                          (data.travel.timestamp - data.travel.departed) * 100
+                        ))}%` 
+                      }
+                    ]} 
+                  />
+                  <Ionicons name="airplane" size={20} color="#2196f3" style={styles.travelPlaneIcon} />
+                </View>
+              </View>
+              <Text style={styles.travelFlag}>
+                {COUNTRY_FLAGS[data.travel.destination] || '🌍'}
+              </Text>
+            </View>
+            <Text style={styles.travelArrivalText}>
+              Arriving in {data.travel.destination} at {new Date(data.travel.timestamp * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} LT
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* In Torn Status - Show when not traveling */}
+        {data.travel && data.travel.time_left <= 0 && data.travel.destination === 'Torn' && (
+          <TouchableOpacity 
+            style={[styles.card, styles.travelCard, styles.inTornCard]}
+            onPress={() => openTornUrl(TORN_URLS.travel)}
+          >
+            <View style={styles.inTornContent}>
+              <Text style={styles.travelFlag}>🏠</Text>
+              <Text style={styles.inTornText}>Currently in Torn</Text>
+              <Ionicons name="chevron-forward" size={20} color="#888" />
+            </View>
+          </TouchableOpacity>
+        )}
+
         {/* Cooldowns & Refills Card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
