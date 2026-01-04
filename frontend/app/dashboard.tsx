@@ -207,27 +207,66 @@ export default function Dashboard() {
           
           {/* Cooldowns */}
           <View style={styles.cooldownsGrid}>
-            <View style={styles.cooldownItem}>
+            <TouchableOpacity 
+              style={styles.cooldownItem}
+              onPress={() => {
+                if (data.cooldowns.drug <= 0) {
+                  Alert.alert('💊 Drug Cooldown Ready', 'Be sure to take your drugs!');
+                }
+              }}
+              activeOpacity={data.cooldowns.drug <= 0 ? 0.7 : 1}
+            >
               <Ionicons name="medical-outline" size={20} color={data.cooldowns.drug <= 0 ? '#4caf50' : '#ff9800'} />
               <Text style={styles.cooldownLabel}>Drug</Text>
               <Text style={[styles.cooldownValue, data.cooldowns.drug <= 0 && styles.cooldownReady]}>
                 {formatCooldown(data.cooldowns.drug)}
               </Text>
-            </View>
-            <View style={styles.cooldownItem}>
+              {data.cooldowns.drug <= 0 && (
+                <View style={styles.cooldownAlert}>
+                  <Ionicons name="alert-circle" size={14} color="#ffc107" />
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.cooldownItem}
+              onPress={() => {
+                if (data.cooldowns.medical <= 0) {
+                  Alert.alert('🏥 Medical Cooldown Ready', 'Medical cooldown is ready to use!');
+                }
+              }}
+              activeOpacity={data.cooldowns.medical <= 0 ? 0.7 : 1}
+            >
               <Ionicons name="bandage-outline" size={20} color={data.cooldowns.medical <= 0 ? '#4caf50' : '#ff9800'} />
               <Text style={styles.cooldownLabel}>Medical</Text>
               <Text style={[styles.cooldownValue, data.cooldowns.medical <= 0 && styles.cooldownReady]}>
                 {formatCooldown(data.cooldowns.medical)}
               </Text>
-            </View>
-            <View style={styles.cooldownItem}>
+              {data.cooldowns.medical <= 0 && (
+                <View style={styles.cooldownAlert}>
+                  <Ionicons name="alert-circle" size={14} color="#ffc107" />
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.cooldownItem}
+              onPress={() => {
+                if (data.cooldowns.booster <= 0) {
+                  Alert.alert('🚀 Booster Cooldown Ready', 'Be sure to max your booster!');
+                }
+              }}
+              activeOpacity={data.cooldowns.booster <= 0 ? 0.7 : 1}
+            >
               <Ionicons name="rocket-outline" size={20} color={data.cooldowns.booster <= 0 ? '#4caf50' : '#ff9800'} />
               <Text style={styles.cooldownLabel}>Booster</Text>
               <Text style={[styles.cooldownValue, data.cooldowns.booster <= 0 && styles.cooldownReady]}>
                 {formatCooldown(data.cooldowns.booster)}
               </Text>
-            </View>
+              {data.cooldowns.booster <= 0 && (
+                <View style={styles.cooldownAlert}>
+                  <Ionicons name="alert-circle" size={14} color="#ffc107" />
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
 
           {/* Refills */}
