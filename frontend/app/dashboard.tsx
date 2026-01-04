@@ -35,6 +35,19 @@ interface DashboardData {
     cash: number;
     points: number;
     bank: number;
+    bank_time_left: number;
+    company_funds: number;
+    networth: number;
+  };
+  cooldowns: {
+    drug: number;
+    medical: number;
+    booster: number;
+  };
+  refills: {
+    energy_refill_used: boolean;
+    nerve_refill_used: boolean;
+    token_refill_used: boolean;
   };
   battle_stats: {
     strength: number;
@@ -43,7 +56,6 @@ interface DashboardData {
     dexterity: number;
     total: number;
   };
-  cooldowns: any;
 }
 
 export default function Dashboard() {
@@ -87,13 +99,45 @@ export default function Dashboard() {
     fetchDashboardData();
   }, []);
 
-  const formatNumber = (num: number) => {
-    if (num >= 1000000) {
+  const formatMoney = (num: number) => {
+    if (num >= 1000000000) {
+      return `$${(num / 1000000000).toFixed(2)}B`;
+    } else if (num >= 1000000) {
       return `$${(num / 1000000).toFixed(2)}M`;
     } else if (num >= 1000) {
       return `$${(num / 1000).toFixed(1)}K`;
     }
     return `$${num.toLocaleString()}`;
+  };
+
+  const formatCooldown = (seconds: number) => {
+    if (seconds <= 0) return 'Ready';
+    
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${secs}s`;
+    }
+    return `${secs}s`;
+  };
+
+  const formatBankTime = (seconds: number) => {
+    if (seconds <= 0) return 'Ready to collect';
+    
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    
+    if (days > 0) {
+      return `${days}d ${hours}h left`;
+    } else if (hours > 0) {
+      return `${hours}h ${minutes}m left`;
+    }
+    return `${minutes}m left`;
   };
 
   const renderProgressBar = (label: string, current: number, maximum: number, color: string) => {
@@ -154,24 +198,65 @@ export default function Dashboard() {
         style={styles.scrollView}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#d32f2f" />}
       >
-        {/* Profile Card */}
+        {/* Cooldowns & Refills Card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Ionicons name="person-circle-outline" size={24} color="#d32f2f" />
-            <Text style={styles.cardTitle}>Profile</Text>
+            <Ionicons name="timer-outline" size={24} color="#ff9800" />
+            <Text style={styles.cardTitle}>Cooldowns & Refills</Text>
           </View>
-          <View style={styles.profileGrid}>
-            <View style={styles.profileItem}>
-              <Text style={styles.profileLabel}>Level</Text>
-              <Text style={styles.profileValue}>{data.profile.level}</Text>
+          
+          {/* Cooldowns */}
+          <View style={styles.cooldownsGrid}>
+            <View style={styles.cooldownItem}>
+              <Ionicons name="medical-outline" size={20} color={data.cooldowns.drug <= 0 ? '#4caf50' : '#ff9800'} />
+              <Text style={styles.cooldownLabel}>Drug</Text>
+              <Text style={[styles.cooldownValue, data.cooldowns.drug <= 0 && styles.cooldownReady]}>
+                {formatCooldown(data.cooldowns.drug)}
+              </Text>
             </View>
-            <View style={styles.profileItem}>
-              <Text style={styles.profileLabel}>Rank</Text>
-              <Text style={styles.profileValue}>{data.profile.rank}</Text>
+            <View style={styles.cooldownItem}>
+              <Ionicons name="bandage-outline" size={20} color={data.cooldowns.medical <= 0 ? '#4caf50' : '#ff9800'} />
+              <Text style={styles.cooldownLabel}>Medical</Text>
+              <Text style={[styles.cooldownValue, data.cooldowns.medical <= 0 && styles.cooldownReady]}>
+                {formatCooldown(data.cooldowns.medical)}
+              </Text>
             </View>
-            <View style={styles.profileItem}>
-              <Text style={styles.profileLabel}>ID</Text>
-              <Text style={styles.profileValue}>{data.profile.player_id}</Text>
+            <View style={styles.cooldownItem}>
+              <Ionicons name="rocket-outline" size={20} color={data.cooldowns.booster <= 0 ? '#4caf50' : '#ff9800'} />
+              <Text style={styles.cooldownLabel}>Booster</Text>
+              <Text style={[styles.cooldownValue, data.cooldowns.booster <= 0 && styles.cooldownReady]}>
+                {formatCooldown(data.cooldowns.booster)}
+              </Text>
+            </View>
+          </View>
+
+          {/* Refills */}
+          <View style={styles.refillsDivider} />
+          <Text style={styles.refillsTitle}>Daily Refills</Text>
+          <View style={styles.refillsGrid}>
+            <View style={styles.refillItem}>
+              <Ionicons 
+                name={data.refills.energy_refill_used ? "close-circle" : "checkmark-circle"} 
+                size={24} 
+                color={data.refills.energy_refill_used ? '#f44336' : '#4caf50'} 
+              />
+              <Text style={styles.refillLabel}>Energy</Text>
+            </View>
+            <View style={styles.refillItem}>
+              <Ionicons 
+                name={data.refills.nerve_refill_used ? "close-circle" : "checkmark-circle"} 
+                size={24} 
+                color={data.refills.nerve_refill_used ? '#f44336' : '#4caf50'} 
+              />
+              <Text style={styles.refillLabel}>Nerve</Text>
+            </View>
+            <View style={styles.refillItem}>
+              <Ionicons 
+                name={data.refills.token_refill_used ? "close-circle" : "checkmark-circle"} 
+                size={24} 
+                color={data.refills.token_refill_used ? '#f44336' : '#4caf50'} 
+              />
+              <Text style={styles.refillLabel}>Token</Text>
             </View>
           </View>
         </View>
@@ -184,18 +269,33 @@ export default function Dashboard() {
           </View>
           <View style={styles.moneyGrid}>
             <View style={styles.moneyItem}>
-              <Text style={styles.moneyLabel}>Cash</Text>
-              <Text style={styles.moneyValue}>{formatNumber(data.money.cash)}</Text>
-            </View>
-            <View style={styles.moneyItem}>
-              <Text style={styles.moneyLabel}>Bank</Text>
-              <Text style={styles.moneyValue}>{formatNumber(data.money.bank)}</Text>
+              <Text style={styles.moneyLabel}>On Hand</Text>
+              <Text style={styles.moneyValue}>{formatMoney(data.money.cash)}</Text>
             </View>
             <View style={styles.moneyItem}>
               <Text style={styles.moneyLabel}>Points</Text>
-              <Text style={styles.moneyValue}>{data.money.points.toLocaleString()}</Text>
+              <Text style={styles.moneyValuePoints}>{data.money.points.toLocaleString()}</Text>
             </View>
           </View>
+          
+          {/* Bank Section */}
+          <View style={styles.bankSection}>
+            <View style={styles.bankRow}>
+              <Text style={styles.bankLabel}>Bank Investment</Text>
+              <Text style={styles.bankValue}>{formatMoney(data.money.bank)}</Text>
+            </View>
+            <Text style={styles.bankTime}>
+              <Ionicons name="time-outline" size={14} color="#888" /> {formatBankTime(data.money.bank_time_left)}
+            </Text>
+          </View>
+
+          {/* Company Vault */}
+          {data.money.company_funds > 0 && (
+            <View style={styles.companySection}>
+              <Text style={styles.companyLabel}>Company Vault</Text>
+              <Text style={styles.companyValue}>{formatMoney(data.money.company_funds)}</Text>
+            </View>
+          )}
         </View>
 
         {/* Status Bars Card */}
@@ -294,9 +394,6 @@ const styles = StyleSheet.create({
     padding: 8,
     marginLeft: 8,
   },
-  settingsButton: {
-    padding: 8,
-  },
   scrollView: {
     flex: 1,
   },
@@ -351,27 +448,60 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginLeft: 8,
   },
-  profileGrid: {
+  // Cooldowns & Refills
+  cooldownsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  profileItem: {
+  cooldownItem: {
     flex: 1,
     alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#252525',
+    borderRadius: 8,
+    marginHorizontal: 4,
   },
-  profileLabel: {
+  cooldownLabel: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 6,
+  },
+  cooldownValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#ff9800',
+    marginTop: 4,
+  },
+  cooldownReady: {
+    color: '#4caf50',
+  },
+  refillsDivider: {
+    height: 1,
+    backgroundColor: '#333',
+    marginVertical: 16,
+  },
+  refillsTitle: {
     fontSize: 14,
     color: '#888',
-    marginBottom: 4,
+    marginBottom: 12,
   },
-  profileValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
+  refillsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
   },
+  refillItem: {
+    alignItems: 'center',
+  },
+  refillLabel: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 4,
+  },
+  // Money
   moneyGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: 16,
   },
   moneyItem: {
     flex: 1,
@@ -383,10 +513,58 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   moneyValue: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#4caf50',
   },
+  moneyValuePoints: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#ff9800',
+  },
+  bankSection: {
+    backgroundColor: '#252525',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  bankRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  bankLabel: {
+    fontSize: 14,
+    color: '#888',
+  },
+  bankValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#4caf50',
+  },
+  bankTime: {
+    fontSize: 12,
+    color: '#ffc107',
+    marginTop: 8,
+  },
+  companySection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#252525',
+    padding: 12,
+    borderRadius: 8,
+  },
+  companyLabel: {
+    fontSize: 14,
+    color: '#888',
+  },
+  companyValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2196f3',
+  },
+  // Status Bars
   barContainer: {
     marginBottom: 16,
   },
@@ -414,6 +592,7 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 4,
   },
+  // Battle Stats
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -455,6 +634,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#9c27b0',
   },
+  // Actions
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
