@@ -325,30 +325,30 @@ export default function Dashboard() {
           <View style={styles.refillsDivider} />
           <Text style={styles.refillsTitle}>Daily Refills</Text>
           <View style={styles.refillsGrid}>
-            <View style={styles.refillItem}>
+            <TouchableOpacity style={styles.refillItem} onPress={() => openTornUrl(TORN_URLS.pointsMarket)}>
               <Ionicons 
-                name={data.refills.energy_refill_used ? "close-circle" : "checkmark-circle"} 
+                name={data.refills.energy_refill_used ? "checkmark-circle" : "close-circle"} 
                 size={24} 
-                color={data.refills.energy_refill_used ? '#f44336' : '#4caf50'} 
+                color={data.refills.energy_refill_used ? '#4caf50' : '#f44336'} 
               />
               <Text style={styles.refillLabel}>Energy</Text>
-            </View>
-            <View style={styles.refillItem}>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.refillItem} onPress={() => openTornUrl(TORN_URLS.pointsMarket)}>
               <Ionicons 
-                name={data.refills.nerve_refill_used ? "close-circle" : "checkmark-circle"} 
+                name={data.refills.nerve_refill_used ? "checkmark-circle" : "close-circle"} 
                 size={24} 
-                color={data.refills.nerve_refill_used ? '#f44336' : '#4caf50'} 
+                color={data.refills.nerve_refill_used ? '#4caf50' : '#f44336'} 
               />
               <Text style={styles.refillLabel}>Nerve</Text>
-            </View>
-            <View style={styles.refillItem}>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.refillItem} onPress={() => openTornUrl(TORN_URLS.pointsMarket)}>
               <Ionicons 
-                name={data.refills.token_refill_used ? "close-circle" : "checkmark-circle"} 
+                name={data.refills.token_refill_used ? "checkmark-circle" : "close-circle"} 
                 size={24} 
-                color={data.refills.token_refill_used ? '#f44336' : '#4caf50'} 
+                color={data.refills.token_refill_used ? '#4caf50' : '#f44336'} 
               />
-              <Text style={styles.refillLabel}>Token</Text>
-            </View>
+              <Text style={styles.refillLabel}>Casino</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
