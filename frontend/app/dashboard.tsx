@@ -382,10 +382,13 @@ export default function Dashboard() {
 
           {/* Company Vault */}
           {data.money.company_funds > 0 && (
-            <View style={styles.companySection}>
+            <TouchableOpacity 
+              style={styles.companySection}
+              onPress={() => openTornUrl(TORN_URLS.companyFunds)}
+            >
               <Text style={styles.companyLabel}>Company Vault</Text>
               <Text style={styles.companyValue}>{formatMoney(data.money.company_funds)}</Text>
-            </View>
+            </TouchableOpacity>
           )}
         </View>
 
