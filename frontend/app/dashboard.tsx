@@ -267,38 +267,46 @@ export default function Dashboard() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#d32f2f" />}
       >
         {/* Travel Card - Only show when traveling */}
-        {data.travel && data.travel.time_left > 0 && (
-          <TouchableOpacity 
-            style={[styles.card, styles.travelCard]}
-            onPress={() => openTornUrl(TORN_URLS.travel)}
-          >
-            <View style={styles.travelHeader}>
-              <View style={styles.travelProgressContainer}>
-                <Text style={styles.travelTimeText}>{formatCooldown(data.travel.time_left)}</Text>
-                <View style={styles.travelProgressBar}>
-                  <View 
-                    style={[
-                      styles.travelProgressFill, 
-                      { 
-                        width: `${Math.max(0, Math.min(100, 
-                          ((data.travel.timestamp - data.travel.departed) - data.travel.time_left) / 
-                          (data.travel.timestamp - data.travel.departed) * 100
-                        ))}%` 
-                      }
-                    ]} 
-                  />
-                  <Ionicons name="airplane" size={20} color="#2196f3" style={styles.travelPlaneIcon} />
+        {data.travel && data.travel.time_left > 0 && (() => {
+          const totalTravelTime = data.travel.timestamp - data.travel.departed;
+          const elapsed = totalTravelTime - data.travel.time_left;
+          const progressPercent = Math.max(0, Math.min(100, (elapsed / totalTravelTime) * 100));
+          
+          return (
+            <TouchableOpacity 
+              style={[styles.card, styles.travelCard]}
+              onPress={() => openTornUrl(TORN_URLS.tornHome)}
+            >
+              <View style={styles.travelHeader}>
+                <View style={styles.travelProgressContainer}>
+                  <View style={styles.travelInfoRow}>
+                    <Text style={styles.travelTimeText}>Arriving in: {formatCooldown(data.travel.time_left)}</Text>
+                    <Text style={styles.travelFlag}>
+                      {COUNTRY_FLAGS[data.travel.destination] || '🌍'}
+                    </Text>
+                  </View>
+                  <View style={styles.travelProgressBar}>
+                    <View 
+                      style={[
+                        styles.travelProgressFill, 
+                        { width: `${progressPercent}%` }
+                      ]} 
+                    />
+                    <Ionicons 
+                      name="airplane" 
+                      size={20} 
+                      color="#2196f3" 
+                      style={[styles.travelPlaneIcon, { left: `${Math.min(progressPercent, 92)}%` }]} 
+                    />
+                  </View>
                 </View>
               </View>
-              <Text style={styles.travelFlag}>
-                {COUNTRY_FLAGS[data.travel.destination] || '🌍'}
+              <Text style={styles.travelArrivalText}>
+                {data.travel.destination} - ETA {new Date(data.travel.timestamp * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} LT
               </Text>
-            </View>
-            <Text style={styles.travelArrivalText}>
-              Arriving in {data.travel.destination} at {new Date(data.travel.timestamp * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} LT
-            </Text>
-          </TouchableOpacity>
-        )}
+            </TouchableOpacity>
+          );
+        })()}
 
         {/* In Torn Status - Show when not traveling */}
         {data.travel && data.travel.time_left <= 0 && data.travel.destination === 'Torn' && (
