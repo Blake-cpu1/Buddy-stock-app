@@ -181,23 +181,66 @@ function useDashboard() {
 // -------------------- Notifications helpers --------------------
 async function scheduleLocalNotification({ title, body, data, triggerDate, }: { title: string; body: string; data?: any; triggerDate: Date; }) {
   try {
-    // Updated trigger object format
     await Notifications.scheduleNotificationAsync({ content: { title, body, data }, trigger: { date: triggerDate } });
   } catch (err) { console.warn('scheduleLocalNotification failed', err); }
 }
 async function loadTravelNotifFlags() { try { const raw = await AsyncStorage.getItem(TRAVEL_NOTIF_FLAGS); return raw ? JSON.parse(raw) : { wasTravelling: false, notifiedMinutesBefore: {} }; } catch { return { wasTravelling: false, notifiedMinutesBefore: {} }; }
 async function saveTravelNotifFlags(flags: any) { try { await AsyncStorage.setItem(TRAVEL_NOTIF_FLAGS, JSON.stringify(flags)); } catch (err) { console.warn('saveTravelNotifFlags failed', err); } }
+// -------------------- Notifications helpers --------------------
+async function scheduleLocalNotification({
+  title,
+  body,
+  data,
+  triggerDate,
+}: {
+  title: string;
+  body: string;
+  data?: any;
+  triggerDate: Date;
+}) {
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: { title, body, data },
+      trigger: { date: triggerDate },
+    });
+  } catch (err) {
+    console.warn('scheduleLocalNotification failed', err);
+  }
+}
 
+async function loadTravelNotifFlags() {
+  try {
+    const raw = await AsyncStorage.getItem(TRAVEL_NOTIF_FLAGS);
+    return raw ? JSON.parse(raw) : { wasTravelling: false, notifiedMinutesBefore: {} };
+  } catch (err) {
+    console.warn('loadTravelNotifFlags failed', err);
+    return { wasTravelling: false, notifiedMinutesBefore: {} };
+  }
+}
+
+async function saveTravelNotifFlags(flags: any) {
+  try {
+    await AsyncStorage.setItem(TRAVEL_NOTIF_FLAGS, JSON.stringify(flags));
+  } catch (err) {
+    console.warn('saveTravelNotifFlags failed', err);
+  }
+}
 // -------------------- UI Components --------------------
 type CollapsibleCardProps = {
   title: string;
   icon: React.ReactNode;
   children: React.ReactNode;
   defaultExpanded?: boolean;
-  pillColor?: string; // new prop to tint the pill
+  pillColor?: string;
 };
 
-const CollapsibleCard = ({ title, icon, children, defaultExpanded = true, pillColor }: CollapsibleCardProps) => {
+function CollapsibleCard({
+  title,
+  icon,
+  children,
+  defaultExpanded = true,
+  pillColor,
+}: CollapsibleCardProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const animated = useRef(new Animated.Value(defaultExpanded ? 1 : 0)).current;
 
@@ -217,11 +260,10 @@ const CollapsibleCard = ({ title, icon, children, defaultExpanded = true, pillCo
 
   // pill styles derived from pillColor
   const pillBorder = pillColor ?? 'rgba(255,255,255,0.06)';
-  const pillBg = pillColor ? `${pillColor}22` : 'rgba(255,255,255,0.02)'; // subtle tint if color provided
+  const pillBg = pillColor ? `${pillColor}22` : 'rgba(255,255,255,0.02)';
 
   return (
     <View style={[refStyles.card, { overflow: 'hidden' }]}>
-      {/* Header: pill-style left, chevron right */}
       <View style={refStyles.cardHeaderRow}>
         <TouchableOpacity
           activeOpacity={0.85}
@@ -242,7 +284,7 @@ const CollapsibleCard = ({ title, icon, children, defaultExpanded = true, pillCo
       </Animated.View>
     </View>
   );
-};
+}
 
 const AnimatedProgressBar = ({ label, current, maximum, color, onPress, icon }: any) => {
   const cur = current ?? 0; const max = maximum ?? 0; const pct = max > 0 ? Math.max(0, Math.min(100, (cur / max) * 100)) : 0;
@@ -269,6 +311,7 @@ const CooldownItem = ({ iconName, label, value, ready, onPress }: any) => (
     <Text style={[refStyles.cooldownValue, ready && { color: THEME.accent }]}>{value}</Text>
   </TouchableOpacity>
 );
+}
 
 // -------------------- Main Dashboard --------------------
 export default function Dashboard() {
@@ -601,7 +644,7 @@ export default function Dashboard() {
           </View>
         </CollapsibleCard>
 
-        {/* War Analytics - content unchanged, header pill will match chips if desired */}
+        {/* War Analytics - content unchanged */}
         <CollapsibleCard title="War Analytics" icon={<Ionicons name="shield-outline" size={18} color="#ffca28" />} defaultExpanded={false} pillColor="#ffca28">
           {!rwActive || !warStats ? (
             <Text style={{ color: '#aaa', fontSize: 13 }}>War analytics unavailable. Set Opponent Faction ID in War Settings.</Text>
