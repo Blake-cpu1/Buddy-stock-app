@@ -1,0 +1,1168 @@
+// app/dashboard.tsx
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+  ActivityIndicator,
+  TouchableOpacity,
+  Alert,
+  Linking,
+  Platform,
+  SafeAreaView,
+  Animated,
+  Easing,
+} from 'react-native';
+import axios from 'axios';
+import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
+import { useRouter } from 'expo-router';
+
+import {
+  getOpponentFactionId,
+  filterOutgoingWarHits,
+  filterIncomingWarHits,
+  calculateWarStats,
+  formatRelativeTimeFromNow,
+  formatUnixTimestamp,
+} from '../utils/warUtils';
+
+// Notification handler
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+  }),
+});
+
+// -------------------- Constants & Theme --------------------
+const TORN_URLS = {
+  drugArmoury: 'https://www.torn.com/factions.php?step=your&type=1#/tab=armoury',
+  medicalArmoury: 'https://www.torn.com/factions.php?step=your&type=1#/tab=armoury',
+  boosterItems: 'https://www.torn.com/item.php',
+  pointsMarket: 'https://www.torn.com/page.php?sid=points',
+  companyFunds: 'https://www.torn.com/companies.php?step=your&type=1#/option=funds',
+  gym: 'https://www.torn.com/gym.php',
+  crimes: 'https://www.torn.com/page.php?sid=crimes#/',
+  travel: 'https://www.torn.com/travelagency.php',
+};
+
+const MAX_COOLDOWNS = { medical: 6 * 60 * 60, booster: 48 * 60 * 60 };
+const STAT_HISTORY_KEY = 'stat_history_v1';
+const TRAVEL_FLAGS_KEY = 'travel_flags_v1';
+const TRAVEL_NOTIF_FLAGS = 'travel_notif_flags_v1';
+
+const THEME = {
+  bg: '#050608',
+  surface: '#0b0d10',
+  card: '#111318',
+  muted: '#9aa0a6',
+  text: '#ffffff',
+  accent: '#4caf50',
+  accentAlt: '#00bcd4',
+  warn: '#ff9800',
+  danger: '#f44336',
+  border: '#1f2326',
+};
+
+const SPACING = { xs: 6, sm: 10, md: 16, lg: 22, xl: 30 };
+const TYPE = { header: 26, title: 18, body: 15, small: 12 };
+
+// -------------------- Types --------------------
+interface Bars {
+  energy: { current: number; maximum: number };
+  nerve: { current: number; maximum: number };
+  happy: { current: number; maximum: number };
+  life: { current: number; maximum: number };
+}
+interface Money {
+  cash: number;
+  points: number;
+  bank: number;
+  bank_time_left: number;
+  company_funds: number;
+  networth?: number;
+}
+interface Cooldowns {
+  drug?: number;
+  medical?: number;
+  booster?: number;
+}
+interface Refills {
+  energy_refill_used?: boolean;
+  nerve_refill_used?: boolean;
+  token_refill_used?: boolean;
+}
+interface Travel {
+  destination?: string;
+  timestamp?: number;
+  departed?: number;
+  time_left?: number;
+}
+interface BattleStats {
+  strength: number;
+  defense: number;
+  speed: number;
+  dexterity: number;
+  total: number;
+  strength_modifier?: number;
+  defense_modifier?: number;
+  speed_modifier?: number;
+  dexterity_modifier?: number;
+  strength_base?: number;
+  defense_base?: number;
+  speed_base?: number;
+  dexterity_base?: number;
+  total_base?: number;
+}
+interface DashboardData {
+  profile: any;
+  bars: Bars;
+  money: Money;
+  cooldowns: Cooldowns;
+  refills: Refills;
+  travel: Travel;
+  battle_stats: BattleStats;
+  icons: Record<string, string>;
+}
+
+// -------------------- Axios helpers --------------------
+const apiClient = axios.create({ timeout: 15000, headers: { Accept: 'application/json' } });
+function createCancelToken() {
+  return axios.CancelToken.source();
+}
+function axiosIsCancel(err: any) {
+  return axios.isCancel(err) || err?.message === 'canceled' || err?.__CANCEL__;
+}
+
+// -------------------- useDashboard hook --------------------
+function useDashboard() {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
+
+  const isMounted = useRef(true);
+  const inFlight = useRef<{ cancelToken: any } | null>(null);
+
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+      if (inFlight.current?.cancelToken) inFlight.current.cancelToken.cancel('unmount');
+    };
+  }, []);
+
+  const saveStatSnapshot = useCallback(async (total: number) => {
+    try {
+      const now = Date.now();
+      const raw = await AsyncStorage.getItem(STAT_HISTORY_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+      const pruned = arr.filter((e: any) => now - e.timestamp < sevenDaysMs);
+      pruned.push({ timestamp: now, total });
+      await AsyncStorage.setItem(STAT_HISTORY_KEY, JSON.stringify(pruned));
+    } catch (e) {
+      console.warn('stat history save failed', e);
+    }
+  }, []);
+
+  const loadTravelFlags = useCallback(async () => {
+    try {
+      const raw = await AsyncStorage.getItem(TRAVEL_FLAGS_KEY);
+      return raw ? JSON.parse(raw) : { wasTravelling: false, wasAboveOneMinute: true };
+    } catch {
+      return { wasTravelling: false, wasAboveOneMinute: true };
+    }
+  }, []);
+
+  const saveTravelFlags = useCallback(async (flags: any) => {
+    try {
+      await AsyncStorage.setItem(TRAVEL_FLAGS_KEY, JSON.stringify(flags));
+    } catch (e) {
+      console.warn('save travel flags failed', e);
+    }
+  }, []);
+
+  const fetchDashboard = useCallback(
+    async (opts?: { manual?: boolean }) => {
+      if (inFlight.current) return;
+
+      setError(null);
+      if (opts?.manual) setRefreshing(true);
+      else setLoading(true);
+
+      const cancelToken = createCancelToken();
+      inFlight.current = { cancelToken };
+
+      try {
+        const key = await SecureStore.getItemAsync('torn_api_key');
+        if (!key) {
+          setError('API key missing');
+          Alert.alert('API Key Required', 'Please configure your API key in settings.');
+          return;
+        }
+
+        const userUrl = `https://api.torn.com/user/?selections=profile,bars,money,cooldowns,refills,travel,battlestats,icons&key=${key}`;
+        const resp = await apiClient.get(userUrl, { cancelToken: cancelToken.token });
+        if (!isMounted.current) return;
+        const api = resp.data ?? {};
+
+        const mapped: DashboardData = {
+          profile: {
+            player_id: api.player_id,
+            name: api.name,
+            level: api.level,
+            rank: api.rank,
+            gender: api.gender,
+            status: api.status,
+            faction_id: api.faction?.faction_id ?? api.faction_id ?? null,
+            faction_name: api.faction?.faction_name ?? api.faction?.name ?? null,
+          },
+          bars: {
+            energy: api.energy ?? { current: 0, maximum: 0 },
+            nerve: api.nerve ?? { current: 0, maximum: 0 },
+            happy: api.happy ?? { current: 0, maximum: 0 },
+            life: api.life ?? { current: 0, maximum: 0 },
+          },
+          money: {
+            cash: api.money_onhand ?? 0,
+            points: api.points ?? 0,
+            bank: api.city_bank?.amount ?? 0,
+            bank_time_left: api.city_bank?.time_left ?? 0,
+            company_funds: api.company_funds ?? 0,
+            networth: api.daily_networth ?? 0,
+          },
+          cooldowns: api.cooldowns ?? {},
+          refills: api.refills ?? {},
+          travel: api.travel ?? { destination: 'Unknown', time_left: 0, timestamp: 0, departed: 0 },
+          battle_stats: (() => {
+            const strength = api.strength ?? 0;
+            const defense = api.defense ?? 0;
+            const speed = api.speed ?? 0;
+            const dexterity = api.dexterity ?? 0;
+            const total = api.total ?? strength + defense + speed + dexterity;
+
+            const sMod = api.strength_modifier ?? 0;
+            const dMod = api.defense_modifier ?? 0;
+            const spMod = api.speed_modifier ?? 0;
+            const dxMod = api.dexterity_modifier ?? 0;
+
+            const toBase = (effective: number, modifier: number) => {
+              const factor = 1 + modifier / 100;
+              if (factor === 0) return effective;
+              return effective / factor;
+            };
+
+            const strength_base = toBase(strength, sMod);
+            const defense_base = toBase(defense, dMod);
+            const speed_base = toBase(speed, spMod);
+            const dexterity_base = toBase(dexterity, dxMod);
+            const total_base = strength_base + defense_base + speed_base + dexterity_base;
+
+            return {
+              strength,
+              defense,
+              speed,
+              dexterity,
+              total,
+              strength_modifier: sMod,
+              defense_modifier: dMod,
+              speed_modifier: spMod,
+              dexterity_modifier: dxMod,
+              strength_base,
+              defense_base,
+              speed_base,
+              dexterity_base,
+              total_base,
+            };
+          })(),
+          icons: api.icons ?? {},
+        };
+
+        setData(mapped);
+        saveStatSnapshot(mapped.battle_stats.total);
+        setLastUpdated(Date.now());
+
+        const flags = await loadTravelFlags();
+        const isTravelling = (mapped.travel?.time_left ?? 0) > 0;
+        if (isTravelling !== flags.wasTravelling) flags.wasTravelling = isTravelling;
+        if ((mapped.travel?.time_left ?? 0) > 120) flags.wasAboveOneMinute = true;
+        await saveTravelFlags(flags);
+      } catch (err: any) {
+        if (!axiosIsCancel(err)) {
+          console.error('fetchDashboard error', err);
+          setError('Failed to load dashboard');
+          if (opts?.manual) Alert.alert('Error', 'Failed to refresh dashboard.');
+        }
+      } finally {
+        inFlight.current = null;
+        if (!isMounted.current) return;
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [loadTravelFlags, saveStatSnapshot, saveTravelFlags]
+  );
+
+  useEffect(() => {
+    fetchDashboard();
+  }, [fetchDashboard]);
+
+  return {
+    data,
+    loading,
+    refreshing,
+    error,
+    refresh: () => fetchDashboard({ manual: true }),
+    lastUpdated,
+  };
+}
+
+// -------------------- Notifications helpers --------------------
+async function scheduleLocalNotification({
+  title,
+  body,
+  data,
+  triggerDate,
+}: {
+  title: string;
+  body: string;
+  data?: any;
+  triggerDate: Date;
+}) {
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: { title, body, data },
+      trigger: triggerDate,
+    });
+  } catch (err) {
+    console.warn('scheduleLocalNotification failed', err);
+  }
+}
+async function loadTravelNotifFlags() {
+  try {
+    const raw = await AsyncStorage.getItem(TRAVEL_NOTIF_FLAGS);
+    return raw ? JSON.parse(raw) : { wasTravelling: false, notifiedMinutesBefore: {} };
+  } catch {
+    return { wasTravelling: false, notifiedMinutesBefore: {} };
+  }
+}
+async function saveTravelNotifFlags(flags: any) {
+  try {
+    await AsyncStorage.setItem(TRAVEL_NOTIF_FLAGS, JSON.stringify(flags));
+  } catch (err) {
+    console.warn('saveTravelNotifFlags failed', err);
+  }
+}
+
+// -------------------- UI Components --------------------
+const CollapsibleCard = ({
+  title,
+  icon,
+  children,
+  defaultExpanded = true,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+  defaultExpanded?: boolean;
+}) => {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  const animatedHeight = useRef(new Animated.Value(defaultExpanded ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(animatedHeight, {
+      toValue: expanded ? 1 : 0,
+      duration: 220,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: false,
+    }).start();
+  }, [expanded]);
+
+  const containerStyle = {
+    opacity: animatedHeight.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }),
+    maxHeight: animatedHeight.interpolate({ inputRange: [0, 1], outputRange: [0, 800] }),
+  };
+
+  return (
+    <View style={refStyles.card}>
+      <TouchableOpacity style={refStyles.cardHeader} onPress={() => setExpanded((e) => !e)} activeOpacity={0.8}>
+        {icon}
+        <Text style={refStyles.cardTitle}>{title}</Text>
+        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={THEME.muted} style={{ marginLeft: 'auto' }} />
+      </TouchableOpacity>
+      <Animated.View style={[refStyles.cardContent, containerStyle]}>{expanded ? children : null}</Animated.View>
+    </View>
+  );
+};
+
+const AnimatedProgressBar = ({ label, current, maximum, color, onPress, icon }: any) => {
+  const cur = current ?? 0;
+  const max = maximum ?? 0;
+  const pct = max > 0 ? Math.max(0, Math.min(100, (cur / max) * 100)) : 0;
+
+  const anim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(anim, { toValue: pct, duration: 350, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+  }, [pct]);
+
+  const widthInterpolate = anim.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] });
+
+  const content = (
+    <View style={refStyles.progressRow}>
+      <View style={refStyles.progressText}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {icon}
+          <Text style={refStyles.progressLabel}>{label}</Text>
+        </View>
+        <Text style={refStyles.progressValue}>
+          {cur} / {max}
+        </Text>
+      </View>
+      <View style={refStyles.progressTrack}>
+        <Animated.View style={[refStyles.progressFill, { width: widthInterpolate, backgroundColor: color }]} />
+      </View>
+    </View>
+  );
+
+  if (onPress)
+    return (
+      <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
+        {content}
+      </TouchableOpacity>
+    );
+  return content;
+};
+
+const CooldownItem = ({ iconName, label, value, ready, onPress }: any) => (
+  <TouchableOpacity style={refStyles.cooldownItem} onPress={onPress} accessibilityRole="button">
+    <View style={refStyles.cooldownTop}>
+      <Ionicons name={iconName} size={20} color={ready ? THEME.accent : THEME.warn} />
+    </View>
+    <Text style={refStyles.cooldownLabel}>{label}</Text>
+    <Text style={[refStyles.cooldownValue, ready && { color: THEME.accent }]}>{value}</Text>
+  </TouchableOpacity>
+);
+
+// -------------------- Main Dashboard --------------------
+export default function Dashboard() {
+  const { data, loading, refreshing, refresh, lastUpdated } = useDashboard();
+  const router = useRouter();
+
+  const [rwActive, setRwActive] = useState(false);
+  const [rwOpponentName, setRwOpponentName] = useState<string | null>(null);
+  const [rwOpponentId, setRwOpponentId] = useState<number | null>(null);
+  const [warStats, setWarStats] = useState<any | null>(null);
+  const [warStartTs, setWarStartTs] = useState<number | null>(null);
+  const [warDebug, setWarDebug] = useState(false);
+
+  const respectAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Notifications.requestPermissionsAsync().catch(() => {});
+  }, []);
+
+  // Travel notifications (unchanged)
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    let mounted = true;
+    (async () => {
+      const travel = data?.travel;
+      if (!travel) {
+        await saveTravelNotifFlags({ wasTravelling: false, notifiedMinutesBefore: {} });
+        return;
+      }
+
+      const flags = await loadTravelNotifFlags();
+      const timeLeft = travel.time_left ?? 0;
+      const destination = travel.destination ?? 'Unknown';
+      const now = Date.now();
+      const arrivalTs = travel.timestamp && travel.timestamp > 0 ? travel.timestamp * 1000 : now + timeLeft * 1000;
+      const minutesBeforeList = [5, 2, 1];
+
+      const isTravelling = timeLeft > 0;
+      if (isTravelling && !flags.wasTravelling) {
+        flags.notifiedMinutesBefore = {};
+        flags.wasTravelling = true;
+      }
+
+      for (const minutesBefore of minutesBeforeList) {
+        const key = `${arrivalTs}:${minutesBefore}`;
+        if (flags.notifiedMinutesBefore?.[key]) continue;
+        const triggerTime = new Date(arrivalTs - minutesBefore * 60 * 1000);
+        if (triggerTime.getTime() > Date.now()) {
+          await scheduleLocalNotification({
+            title: '✈️ Almost there',
+            body: `Arriving in ${destination} in ${minutesBefore} minute(s)`,
+            data: { screen: 'Travel', destination },
+            triggerDate: triggerTime,
+          });
+          flags.notifiedMinutesBefore = flags.notifiedMinutesBefore || {};
+          flags.notifiedMinutesBefore[key] = true;
+        }
+      }
+
+      const arrivalKey = `${arrivalTs}:arrival`;
+      if (!flags.notifiedMinutesBefore?.[arrivalKey]) {
+        const arrivalDate = new Date(arrivalTs);
+        if (arrivalDate.getTime() > Date.now()) {
+          await scheduleLocalNotification({
+            title: `🛬 Arrived in ${destination}`,
+            body: destination === 'Torn' ? 'Welcome home!' : `You've arrived in ${destination}.`,
+            data: { screen: 'Travel', destination },
+            triggerDate: arrivalDate,
+          });
+          flags.notifiedMinutesBefore = flags.notifiedMinutesBefore || {};
+          flags.notifiedMinutesBefore[arrivalKey] = true;
+        } else {
+          flags.wasTravelling = false;
+        }
+      }
+
+      await saveTravelNotifFlags(flags);
+      if (!mounted) return;
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [data?.travel?.time_left, data?.travel?.timestamp, data?.travel?.destination]);
+
+  // -------------------- War analytics (manual opponent ID) --------------------
+  useEffect(() => {
+    let mounted = true;
+    let pollTimer: NodeJS.Timeout | null = null;
+
+    const run = async () => {
+      try {
+        const key = await SecureStore.getItemAsync('torn_api_key');
+        if (!key) {
+          if (mounted) {
+            setRwActive(false);
+            setWarStats(null);
+          }
+          return;
+        }
+
+        const myFactionId = data?.profile?.faction_id ? Number(data.profile.faction_id) : null;
+        if (!myFactionId) {
+          if (mounted) {
+            setRwActive(false);
+            setWarStats(null);
+          }
+          return;
+        }
+
+        const manualOpponentId = await getOpponentFactionId();
+        if (!manualOpponentId) {
+          // no manual opponent configured
+          if (mounted) {
+            setRwActive(false);
+            setWarStats(null);
+            setRwOpponentId(null);
+            setRwOpponentName(null);
+          }
+          return;
+        }
+
+        // Try to fetch rankedwars to get war start and opponent name (best-effort)
+        let warStart: number | null = null;
+        let opponentName: string | null = null;
+        try {
+          const rwUrl = `https://api.torn.com/torn/?selections=rankedwars&key=${key}`;
+          const rwResp = await apiClient.get(rwUrl);
+          const rwData = rwResp.data ?? {};
+          const wars = rwData.rankedwars ?? {};
+
+          const warEntry = Object.entries(wars).find(([_, war]: any) => {
+            const factions = war?.factions ?? {};
+            const ids = Object.keys(factions);
+            return ids.includes(String(myFactionId)) && ids.includes(String(manualOpponentId));
+          });
+
+          if (warEntry) {
+            const [, war] = warEntry as [string, any];
+            const factions = war.factions ?? {};
+            const opp = factions[String(manualOpponentId)];
+            opponentName = opp?.name ?? opp?.faction_name ?? String(manualOpponentId);
+            warStart = war?.war?.start ?? war?.start ?? null;
+          }
+        } catch (e) {
+          // ignore rankedwars errors; manual ID is primary source
+        }
+
+        // Fetch user's attacks and compute stats
+        const atkUrl = `https://api.torn.com/user/?selections=attacks&key=${key}`;
+        const atkResp = await apiClient.get(atkUrl);
+        const atkData = atkResp.data ?? {};
+        const attacks = atkData.attacks ?? {};
+
+        const outgoing = filterOutgoingWarHits(attacks, myFactionId, manualOpponentId);
+        const incoming = filterIncomingWarHits(attacks, myFactionId, manualOpponentId);
+        const stats = calculateWarStats(outgoing, incoming);
+
+        if (!mounted) return;
+
+        setRwActive(true);
+        setRwOpponentId(manualOpponentId);
+        setRwOpponentName(opponentName ?? `Faction ${manualOpponentId}`);
+        setWarStats(stats);
+        setWarStartTs(warStart);
+
+        Animated.timing(respectAnim, {
+          toValue: stats.outgoingTotalRespect,
+          duration: 300,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: false,
+        }).start();
+      } catch (err) {
+        console.warn('War analytics error', err);
+        if (mounted) {
+          setRwActive(false);
+          setWarStats(null);
+        }
+      }
+    };
+
+    run();
+    pollTimer = setInterval(run, 60 * 1000);
+
+    return () => {
+      mounted = false;
+      if (pollTimer) clearInterval(pollTimer);
+    };
+  }, [data?.profile?.faction_id]);
+
+  // -------------------- Helpers --------------------
+  const openTornUrl = useCallback(async (url: string) => {
+    try {
+      await Linking.openURL(url);
+    } catch (err) {
+      console.error('open url error', err);
+      Alert.alert('Error', 'Failed to open link.');
+    }
+  }, []);
+
+  const formatMoney = (num: number | undefined | null) => {
+    num = num ?? 0;
+    if (num >= 1_000_000_000) return `$${(num / 1_000_000_000).toFixed(2)}B`;
+    if (num >= 1_000_000) return `$${(num / 1_000_000).toFixed(2)}M`;
+    if (num >= 1000) return `$${(num / 1000).toFixed(1)}K`;
+    return `$${num.toLocaleString()}`;
+  };
+
+  const formatCooldown = (seconds: number | undefined | null) => {
+    seconds = seconds ?? 0;
+    if (seconds <= 0) return 'Ready';
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    if (minutes > 0) return `${minutes}m ${secs}s`;
+    return `${secs}s`;
+  };
+
+  const formatCooldownWithMax = (seconds: number | undefined | null, maxSeconds: number | null) => {
+    const current = formatCooldown(seconds);
+    if (!maxSeconds) return current;
+    const maxHours = Math.floor(maxSeconds / 3600);
+    return (seconds ?? 0) <= 0 ? `Ready / ${maxHours}h` : `${current} / ${maxHours}h`;
+  };
+
+  const totalTravelTime = Math.max(0, (data?.travel?.timestamp ?? 0) - (data?.travel?.departed ?? 0));
+  const elapsed = Math.max(0, totalTravelTime - (data?.travel?.time_left ?? 0));
+  const progressPercent = totalTravelTime > 0 ? Math.max(0, Math.min(100, (elapsed / totalTravelTime) * 100)) : 0;
+
+  const addictionText = data?.icons?.icon58 ?? null;
+  const drugCooldownText = data?.icons?.icon53 ?? null;
+  const medicalCooldownText = data?.icons?.icon47 ?? null;
+  const boosterCooldownText = data?.icons?.icon39 ?? null;
+  const bankIconText = data?.icons?.icon29 ?? null;
+
+  const lastUpdatedText = lastUpdated != null ? `Updated ${Math.round((Date.now() - lastUpdated) / 1000)}s ago` : '';
+
+  if (loading && !data) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={THEME.danger} />
+        <Text style={styles.loadingText}>Loading your dashboard...</Text>
+      </SafeAreaView>
+    );
+  }
+  if (!data) {
+    return (
+      <SafeAreaView style={styles.errorContainer}>
+        <Text style={styles.errorText}>Failed to load data</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={refresh}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
+  const travelChip = (data.travel?.time_left ?? 0) > 0 ? { label: `Travel: ${formatCooldown(data.travel.time_left)}`, color: THEME.accentAlt, icon: 'airplane-outline' as const } : null;
+  const energyChip = (data.bars.energy.current ?? 0) >= (data.bars.energy.maximum ?? 0) ? { label: 'Energy Full', color: THEME.accent, icon: 'flash-outline' as const } : { label: 'Energy Charging', color: THEME.muted, icon: 'flash-outline' as const };
+  const nerveChip = (data.bars.nerve.current ?? 0) >= (data.bars.nerve.maximum ?? 0) ? { label: 'Nerve Full', color: THEME.warn, icon: 'flame-outline' as const } : { label: 'Nerve Charging', color: THEME.muted, icon: 'flame-outline' as const };
+  const warChip = rwActive ? { label: `War vs ${rwOpponentName ?? 'Unknown'}`, color: '#ffca28', icon: 'trophy-outline' as const } : null;
+  const refillAvailable = !data.refills.energy_refill_used || !data.refills.nerve_refill_used || !data.refills.token_refill_used;
+  const refillChip = refillAvailable ? { label: 'Refills Available', color: THEME.accent, icon: 'water-outline' as const } : null;
+
+  // -------------------- Render --------------------
+  return (
+    <SafeAreaView style={styles.container}>
+      {/* Glass header */}
+      <View style={refStyles.header}>
+        <View style={refStyles.headerBlurLayer} />
+        <View style={refStyles.headerContent}>
+          <View style={refStyles.headerLeft}>
+            <Text style={refStyles.headerTitle}>Dashboard</Text>
+            <Text style={refStyles.headerSubtitle}>{data?.profile?.name ?? 'Player'}</Text>
+            {lastUpdatedText ? <Text style={refStyles.headerUpdated}>{lastUpdatedText}</Text> : null}
+          </View>
+          <View style={refStyles.headerRight}>
+            <TouchableOpacity onPress={() => router.push('/notifications')} style={refStyles.iconButton}>
+              <Ionicons name="notifications-outline" size={22} color={THEME.text} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/settings')} style={refStyles.iconButton}>
+              <Ionicons name="settings-outline" size={22} color={THEME.text} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/war-settings')} style={[refStyles.iconButton, { marginLeft: 8 }]}>
+              <Ionicons name="shield-outline" size={22} color={THEME.accent} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+
+      {/* Status chips */}
+      <View style={refStyles.chipsRow}>
+        {[energyChip, nerveChip, travelChip, warChip, refillChip].filter(Boolean).map((chip: any, idx) => (
+          <View key={idx} style={[refStyles.chip, { borderColor: chip.color }]}>
+            <Ionicons name={chip.icon} size={14} color={chip.color} style={{ marginRight: 4 }} />
+            <Text style={[refStyles.chipText, { color: chip.color }]}>{chip.label}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* War mini HUD */}
+      {rwActive && warStats && (
+        <View style={refStyles.warHud}>
+          <View style={refStyles.warHudLeft}>
+            <Ionicons name="trophy-outline" size={22} color="#ffca28" style={{ marginRight: 8 }} />
+            <View>
+              <Text style={refStyles.warHudTitle}>Ranked War</Text>
+              <Text style={refStyles.warHudSubtitle}>vs {rwOpponentName ?? 'Unknown'}</Text>
+            </View>
+          </View>
+          <View style={refStyles.warHudRight}>
+            <Text style={refStyles.warHudLabel}>Your Respect</Text>
+            <Animated.Text style={refStyles.warHudValue}>
+              {warStats ? warStats.outgoingTotalRespect.toFixed(2) : '0.00'}
+            </Animated.Text>
+            <Text style={[refStyles.warHudLabel, { marginTop: 2 }]}>{warStartTs ? `Started ${formatUnixTimestamp(warStartTs)}` : ''}</Text>
+          </View>
+        </View>
+      )}
+
+      {/* Travel widget */}
+      {data?.travel && (
+        <>
+          <View style={refStyles.travelWidget}>
+            <Text style={refStyles.travelWidgetTitle}>Travel Status</Text>
+            <View style={refStyles.travelWidgetRow}>
+              <Text style={refStyles.travelWidgetLabel}>Destination:</Text>
+              <Text style={refStyles.travelWidgetValue}>{data.travel.destination}</Text>
+            </View>
+            <View style={refStyles.travelWidgetRow}>
+              <Text style={refStyles.travelWidgetLabel}>ETA:</Text>
+              <Text style={refStyles.travelWidgetValue}>{formatCooldown(data.travel.time_left)}</Text>
+            </View>
+            <View style={refStyles.travelWidgetProgress}>
+              <Animated.View style={[refStyles.travelWidgetFill, { width: `${progressPercent}%` }]} />
+            </View>
+          </View>
+
+          <TouchableOpacity style={refStyles.travelWidgetButton} onPress={() => router.push('/browser')}>
+            <Ionicons name="globe-outline" size={22} color={THEME.accent} />
+            <Text style={refStyles.travelWidgetButtonText}>Open Travel Browser</Text>
+            <Ionicons name="chevron-forward" size={20} color="#888" />
+          </TouchableOpacity>
+        </>
+      )}
+
+      <ScrollView style={styles.scrollView} contentContainerStyle={{ paddingBottom: 80 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={THEME.danger} />}>
+        {/* Status Summary */}
+        <CollapsibleCard title="Status Summary" icon={<Ionicons name="grid-outline" size={22} color={THEME.accentAlt} />} defaultExpanded>
+          <View style={refStyles.statusGrid}>
+            <View style={refStyles.statusItem}>
+              <Text style={refStyles.statusLabel}>Drug Cooldown</Text>
+              <Text style={refStyles.statusValue}>{drugCooldownText ?? '—'}</Text>
+            </View>
+            <View style={refStyles.statusItem}>
+              <Text style={refStyles.statusLabel}>Addiction</Text>
+              <Text style={refStyles.statusValue}>{addictionText ?? 'None'}</Text>
+            </View>
+            <View style={refStyles.statusItem}>
+              <Text style={refStyles.statusLabel}>Medical Cooldown</Text>
+              <Text style={refStyles.statusValue}>{medicalCooldownText ?? '—'}</Text>
+            </View>
+            <View style={refStyles.statusItem}>
+              <Text style={refStyles.statusLabel}>Booster Cooldown</Text>
+              <Text style={refStyles.statusValue}>{boosterCooldownText ?? '—'}</Text>
+            </View>
+            <View style={refStyles.statusItem}>
+              <Text style={refStyles.statusLabel}>Bank Investment</Text>
+              <Text style={refStyles.statusValue}>{bankIconText ?? '—'}</Text>
+            </View>
+          </View>
+        </CollapsibleCard>
+
+        {/* Cooldowns & Refills */}
+        <CollapsibleCard title="Cooldowns & Refills" icon={<Ionicons name="timer-outline" size={24} color={THEME.warn} />} defaultExpanded={false}>
+          <View style={refStyles.cooldownsGrid}>
+            <CooldownItem iconName="leaf-outline" label="Drug" value={formatCooldown(data?.cooldowns?.drug)} ready={(data?.cooldowns?.drug ?? 0) <= 0} onPress={() => openTornUrl(TORN_URLS.drugArmoury)} />
+            <CooldownItem iconName="medkit-outline" label="Medical" value={formatCooldownWithMax(data?.cooldowns?.medical, MAX_COOLDOWNS.medical)} ready={(data?.cooldowns?.medical ?? 0) <= 0} onPress={() => openTornUrl(TORN_URLS.medicalArmoury)} />
+            <CooldownItem iconName="flask-outline" label="Booster" value={formatCooldownWithMax(data?.cooldowns?.booster, MAX_COOLDOWNS.booster)} ready={(data?.cooldowns?.booster ?? 0) <= 0} onPress={() => openTornUrl(TORN_URLS.boosterItems)} />
+          </View>
+
+          <View style={refStyles.refillsDivider} />
+          <Text style={refStyles.refillsTitle}>Daily Refills</Text>
+          <View style={refStyles.refillsGrid}>
+            <TouchableOpacity style={refStyles.refillItem} onPress={() => openTornUrl(TORN_URLS.pointsMarket)}>
+              <Ionicons name={data?.refills?.energy_refill_used ? 'checkmark-circle' : 'close-circle'} size={24} color={data?.refills?.energy_refill_used ? THEME.accent : THEME.danger} />
+              <Text style={refStyles.refillLabel}>Energy</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={refStyles.refillItem} onPress={() => openTornUrl(TORN_URLS.pointsMarket)}>
+              <Ionicons name={data?.refills?.nerve_refill_used ? 'checkmark-circle' : 'close-circle'} size={24} color={data?.refills?.nerve_refill_used ? THEME.accent : THEME.danger} />
+              <Text style={refStyles.refillLabel}>Nerve</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={refStyles.refillItem} onPress={() => openTornUrl(TORN_URLS.pointsMarket)}>
+              <Ionicons name={data?.refills?.token_refill_used ? 'checkmark-circle' : 'close-circle'} size={24} color={data?.refills?.token_refill_used ? THEME.accent : THEME.danger} />
+              <Text style={refStyles.refillLabel}>Casino</Text>
+            </TouchableOpacity>
+          </View>
+        </CollapsibleCard>
+
+        {/* Money */}
+        <CollapsibleCard title="Money" icon={<Ionicons name="cash-outline" size={24} color={THEME.accent} />} defaultExpanded={false}>
+          <View style={refStyles.moneyGrid}>
+            <View style={refStyles.moneyItem}>
+              <Text style={refStyles.moneyLabel}>On Hand</Text>
+              <Text style={refStyles.moneyValue}>{formatMoney(data?.money?.cash)}</Text>
+            </View>
+            <View style={refStyles.moneyItem}>
+              <Text style={refStyles.moneyLabel}>Points</Text>
+              <Text style={refStyles.moneyValuePoints}>{(data?.money?.points ?? 0).toLocaleString()}</Text>
+            </View>
+          </View>
+
+          <View style={refStyles.bankSection}>
+            <View style={refStyles.bankRow}>
+              <Text style={refStyles.bankLabel}>Bank Investment</Text>
+              <Text style={refStyles.bankValue}>{formatMoney(data?.money?.bank)}</Text>
+            </View>
+            <Text style={refStyles.bankTime}>
+              <Ionicons name="time-outline" size={14} color="#888" /> {formatCooldown(data?.money?.bank_time_left)}
+            </Text>
+          </View>
+
+          {(data?.money?.company_funds ?? 0) > 0 && (
+            <TouchableOpacity style={refStyles.companySection} onPress={() => openTornUrl(TORN_URLS.companyFunds)}>
+              <Text style={refStyles.companyLabel}>Company Vault</Text>
+              <Text style={refStyles.companyValue}>{formatMoney(data?.money?.company_funds)}</Text>
+            </TouchableOpacity>
+          )}
+        </CollapsibleCard>
+
+        {/* Status Bars */}
+        <CollapsibleCard title="Status Bars" icon={<Ionicons name="stats-chart-outline" size={24} color="#2196f3" />} defaultExpanded>
+          <AnimatedProgressBar label="Energy" current={data?.bars?.energy?.current} maximum={data?.bars?.energy?.maximum} color={THEME.accent} onPress={() => openTornUrl(TORN_URLS.gym)} icon={<Ionicons name="flash-outline" size={16} color={THEME.accent} style={{ marginRight: 6 }} />} />
+          <AnimatedProgressBar label="Nerve" current={data?.bars?.nerve?.current} maximum={data?.bars?.nerve?.maximum} color={THEME.warn} onPress={() => openTornUrl(TORN_URLS.crimes)} icon={<Ionicons name="flame-outline" size={16} color={THEME.warn} style={{ marginRight: 6 }} />} />
+          <AnimatedProgressBar label="Happy" current={data?.bars?.happy?.current} maximum={data?.bars?.happy?.maximum} color="#e91e63" icon={<Ionicons name="happy-outline" size={16} color="#e91e63" style={{ marginRight: 6 }} />} />
+          <AnimatedProgressBar label="Life" current={data?.bars?.life?.current} maximum={data?.bars?.life?.maximum} color="#f44336" icon={<Ionicons name="heart-outline" size={16} color="#f44336" style={{ marginRight: 6 }} />} />
+        </CollapsibleCard>
+
+        {/* Battle Stats */}
+        <CollapsibleCard title="Battle Stats" icon={<Ionicons name="shield-outline" size={24} color="#9c27b0" />} defaultExpanded={false}>
+          <View style={refStyles.statsGrid}>
+            <View style={refStyles.statItem}>
+              <Text style={refStyles.statLabel}>Strength</Text>
+              <Text style={refStyles.statBase}>Base: {Math.round(data.battle_stats.strength_base ?? 0).toLocaleString()}</Text>
+              <Text style={[refStyles.statEffective, (data.battle_stats.strength_modifier ?? 0) > 0 ? refStyles.boosted : (data.battle_stats.strength_modifier ?? 0) < 0 ? refStyles.reduced : refStyles.neutral]}>
+                Effective: {data.battle_stats.strength.toLocaleString()} ({data.battle_stats.strength_modifier ?? 0}%)
+              </Text>
+            </View>
+            <View style={refStyles.statItem}>
+              <Text style={refStyles.statLabel}>Defense</Text>
+              <Text style={refStyles.statBase}>Base: {Math.round(data.battle_stats.defense_base ?? 0).toLocaleString()}</Text>
+              <Text style={[refStyles.statEffective, (data.battle_stats.defense_modifier ?? 0) > 0 ? refStyles.boosted : (data.battle_stats.defense_modifier ?? 0) < 0 ? refStyles.reduced : refStyles.neutral]}>
+                Effective: {data.battle_stats.defense.toLocaleString()} ({data.battle_stats.defense_modifier ?? 0}%)
+              </Text>
+            </View>
+            <View style={refStyles.statItem}>
+              <Text style={refStyles.statLabel}>Speed</Text>
+              <Text style={refStyles.statBase}>Base: {Math.round(data.battle_stats.speed_base ?? 0).toLocaleString()}</Text>
+              <Text style={[refStyles.statEffective, (data.battle_stats.speed_modifier ?? 0) > 0 ? refStyles.boosted : (data.battle_stats.speed_modifier ?? 0) < 0 ? refStyles.reduced : refStyles.neutral]}>
+                Effective: {data.battle_stats.speed.toLocaleString()} ({data.battle_stats.speed_modifier ?? 0}%)
+              </Text>
+            </View>
+            <View style={refStyles.statItem}>
+              <Text style={refStyles.statLabel}>Dexterity</Text>
+              <Text style={refStyles.statBase}>Base: {Math.round(data.battle_stats.dexterity_base ?? 0).toLocaleString()}</Text>
+              <Text style={[refStyles.statEffective, (data.battle_stats.dexterity_modifier ?? 0) > 0 ? refStyles.boosted : (data.battle_stats.dexterity_modifier ?? 0) < 0 ? refStyles.reduced : refStyles.neutral]}>
+                Effective: {data.battle_stats.dexterity.toLocaleString()} ({data.battle_stats.dexterity_modifier ?? 0}%)
+              </Text>
+            </View>
+          </View>
+
+          <View style={refStyles.totalStats}>
+            <Text style={refStyles.totalLabel}>Total</Text>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={refStyles.totalBase}>Base: {Math.round(data.battle_stats.total_base ?? 0).toLocaleString()}</Text>
+              <Text style={refStyles.totalValue}>Effective: {data.battle_stats.total.toLocaleString()}</Text>
+            </View>
+          </View>
+        </CollapsibleCard>
+
+        {/* War Analytics Card */}
+        <CollapsibleCard title="War Analytics" icon={<Ionicons name="shield-outline" size={24} color="#ffca28" />} defaultExpanded={false}>
+          {!rwActive || !warStats ? (
+            <Text style={{ color: '#aaa', fontSize: 13 }}>War analytics unavailable. Set Opponent Faction ID in War Settings.</Text>
+          ) : (
+            <View>
+              {/* Summary */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+                <View>
+                  <Text style={{ color: '#ccc', fontSize: 12, marginBottom: 2 }}>Opponent</Text>
+                  <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>{rwOpponentName} (ID {rwOpponentId})</Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={{ color: '#ccc', fontSize: 12, marginBottom: 2 }}>War Start</Text>
+                  <Text style={{ color: '#fff', fontSize: 13 }}>{formatUnixTimestamp(warStartTs)}</Text>
+                </View>
+              </View>
+
+              {/* Outgoing / Incoming */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+                <View style={{ flex: 1, marginRight: 6, padding: 8, borderRadius: 8, backgroundColor: '#151617' }}>
+                  <Text style={{ color: '#9aa0a6', fontSize: 12, marginBottom: 4 }}>Your Outgoing</Text>
+                  <Text style={{ color: '#4caf50', fontSize: 16, fontWeight: '700' }}>{warStats.outgoingTotalRespect.toFixed(2)} respect</Text>
+                  <Text style={{ color: '#b0bec5', fontSize: 12, marginTop: 2 }}>{warStats.outgoingHits.length} hits · avg {warStats.outgoingAvgRespect.toFixed(2)}</Text>
+                  <Text style={{ color: '#78909c', fontSize: 11, marginTop: 2 }}>Last hit: {formatRelativeTimeFromNow(warStats.lastOutgoingTs)}</Text>
+                </View>
+
+                <View style={{ flex: 1, marginLeft: 6, padding: 8, borderRadius: 8, backgroundColor: '#151617' }}>
+                  <Text style={{ color: '#9aa0a6', fontSize: 12, marginBottom: 4 }}>Incoming on You</Text>
+                  <Text style={{ color: '#ff7043', fontSize: 16, fontWeight: '700' }}>{warStats.incomingTotalRespect.toFixed(2)} respect</Text>
+                  <Text style={{ color: '#b0bec5', fontSize: 12, marginTop: 2 }}>{warStats.incomingHits.length} hits · avg {warStats.incomingAvgRespect.toFixed(2)}</Text>
+                  <Text style={{ color: '#78909c', fontSize: 11, marginTop: 2 }}>Last hit: {formatRelativeTimeFromNow(warStats.lastIncomingTs)}</Text>
+                </View>
+              </View>
+
+              {/* Opponent behaviour */}
+              <View style={{ padding: 8, borderRadius: 8, backgroundColor: '#151617', marginBottom: 12 }}>
+                <Text style={{ color: '#9aa0a6', fontSize: 12, marginBottom: 4 }}>Opponent Behaviour</Text>
+                <Text style={{ color: '#fff', fontSize: 13 }}>Unique attackers: <Text style={{ fontWeight: '600' }}>{warStats.uniqueAttackers}</Text></Text>
+                <Text style={{ color: '#fff', fontSize: 13 }}>Highest hit on you: <Text style={{ fontWeight: '600' }}>{warStats.highestIncomingRespect.toFixed(2)} respect</Text></Text>
+              </View>
+
+              {/* Debug toggle */}
+              <TouchableOpacity onPress={() => setWarDebug((v) => !v)} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <Ionicons name={warDebug ? 'bug' : 'bug-outline'} size={18} color="#9aa0a6" style={{ marginRight: 6 }} />
+                <Text style={{ color: '#9aa0a6', fontSize: 12 }}>{warDebug ? 'Hide debug info' : 'Show debug info'}</Text>
+              </TouchableOpacity>
+
+              {warDebug && (
+                <View style={{ padding: 8, borderRadius: 8, backgroundColor: '#111318', marginBottom: 12 }}>
+                  <Text style={{ color: '#9aa0a6', fontSize: 12, marginBottom: 4 }}>Debug</Text>
+                  <Text style={{ color: '#b0bec5', fontSize: 11 }}>Outgoing hits: {warStats.outgoingHits.length}</Text>
+                  <Text style={{ color: '#b0bec5', fontSize: 11 }}>Incoming hits: {warStats.incomingHits.length}</Text>
+                  <Text style={{ color: '#b0bec5', fontSize: 11 }}>Opponent ID: {rwOpponentId}</Text>
+                  <Text style={{ color: '#b0bec5', fontSize: 11 }}>War start: {warStartTs ?? 'Unknown'}</Text>
+                </View>
+              )}
+
+              {/* Compact lists */}
+              {warStats.outgoingHits.length > 0 && (
+                <View style={{ marginBottom: 8 }}>
+                  <Text style={{ color: '#9aa0a6', fontSize: 12, marginBottom: 4 }}>Your Hits</Text>
+                  {warStats.outgoingHits.slice(-5).map((hit: any) => (
+                    <View key={hit.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
+                      <Text style={{ color: '#fff', fontSize: 12 }}>{hit.defenderName}</Text>
+                      <Text style={{ color: '#4caf50', fontSize: 12 }}>+{hit.respectGain.toFixed(2)} · {formatRelativeTimeFromNow(hit.timestamp)}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {warStats.incomingHits.length > 0 && (
+                <View style={{ marginTop: 4 }}>
+                  <Text style={{ color: '#9aa0a6', fontSize: 12, marginBottom: 4 }}>Hits on You</Text>
+                  {warStats.incomingHits.slice(-5).map((hit: any) => (
+                    <View key={hit.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
+                      <Text style={{ color: '#fff', fontSize: 12 }}>{hit.attackerName}</Text>
+                      <Text style={{ color: '#ff7043', fontSize: 12 }}>+{hit.respectGain.toFixed(2)} · {formatRelativeTimeFromNow(hit.timestamp)}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+        </CollapsibleCard>
+
+        {/* Quick Actions */}
+        <CollapsibleCard title="Quick Actions" icon={<Ionicons name="apps-outline" size={24} color={THEME.accentAlt} />} defaultExpanded={false}>
+          <TouchableOpacity style={refStyles.actionButton} onPress={() => router.push('/buddy-stocks')}>
+            <Ionicons name="cube" size={24} color={THEME.accent} />
+            <Text style={refStyles.actionButtonText}>Buddy Stocks</Text>
+            <Ionicons name="chevron-forward" size={20} color="#888" />
+          </TouchableOpacity>
+        </CollapsibleCard>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+// -------------------- Styles --------------------
+const refStyles = StyleSheet.create({
+  header: {
+    paddingTop: Platform.OS === 'ios' ? SPACING.xl : SPACING.lg,
+    paddingBottom: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    backgroundColor: 'rgba(10,12,16,0.9)',
+    borderBottomWidth: 1,
+    borderBottomColor: THEME.border,
+    overflow: 'hidden',
+  },
+  headerBlurLayer: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,18,24,0.6)' },
+  headerContent: { flexDirection: 'row', alignItems: 'center' },
+  headerLeft: { flex: 1 },
+  headerRight: { flexDirection: 'row', alignItems: 'center' },
+  headerTitle: { fontSize: TYPE.header, fontWeight: '800', color: THEME.text },
+  headerSubtitle: { fontSize: TYPE.body, color: THEME.muted, marginTop: 2 },
+  headerUpdated: { fontSize: TYPE.small, color: '#7f8c8d', marginTop: 2 },
+  iconButton: { padding: SPACING.sm, marginLeft: SPACING.sm, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.04)' },
+
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: SPACING.md, paddingTop: 6, paddingBottom: 4, backgroundColor: 'transparent' },
+  chip: { flexDirection: 'row', alignItems: 'center', borderRadius: 999, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4, marginRight: 6, marginBottom: 6, backgroundColor: 'rgba(0,0,0,0.4)' },
+  chipText: { fontSize: TYPE.small, fontWeight: '600' },
+
+  warHud: {
+    marginHorizontal: SPACING.md,
+    marginTop: SPACING.sm,
+    padding: SPACING.sm,
+    borderRadius: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ffca28',
+    backgroundColor: '#2b1b00',
+  },
+  warHudLeft: { flexDirection: 'row', alignItems: 'center' },
+  warHudTitle: { color: '#ffca28', fontSize: TYPE.small, fontWeight: '700' },
+  warHudSubtitle: { color: THEME.text, fontSize: TYPE.body },
+  warHudRight: { alignItems: 'flex-end' },
+  warHudLabel: { color: THEME.muted, fontSize: TYPE.small },
+  warHudValue: { color: '#ffca28', fontSize: TYPE.title, fontWeight: '800' },
+
+  card: {
+    backgroundColor: '#111318',
+    marginHorizontal: SPACING.md,
+    marginTop: SPACING.lg,
+    borderRadius: 14,
+    padding: SPACING.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: THEME.border,
+  },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.sm },
+  cardTitle: { fontSize: TYPE.title, fontWeight: '700', color: THEME.text, marginLeft: 10 },
+  cardContent: { marginTop: SPACING.sm },
+
+  progressRow: { marginBottom: SPACING.md },
+  progressText: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  progressLabel: { color: THEME.text, fontWeight: '600', fontSize: TYPE.body },
+  progressValue: { color: THEME.muted, fontSize: TYPE.small },
+  progressTrack: { height: 10, backgroundColor: '#151617', borderRadius: 6, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 6 },
+
+  cooldownsGrid: { flexDirection: 'row', justifyContent: 'space-between' },
+  cooldownItem: { flex: 1, alignItems: 'center', padding: SPACING.sm, backgroundColor: '#161718', borderRadius: 10, marginHorizontal: 6, minWidth: 88 },
+  cooldownTop: { marginBottom: 6 },
+  cooldownLabel: { fontSize: TYPE.small, color: THEME.muted },
+  cooldownValue: { fontSize: TYPE.body, fontWeight: '700', color: THEME.warn },
+
+  refillsDivider: { height: 1, backgroundColor: '#333', marginVertical: SPACING.md },
+  refillsTitle: { fontSize: TYPE.small, color: THEME.muted, marginBottom: SPACING.sm },
+  refillsGrid: { flexDirection: 'row', justifyContent: 'space-around' },
+  refillItem: { alignItems: 'center' },
+  refillLabel: { fontSize: TYPE.small, color: THEME.muted, marginTop: 4 },
+
+  travelWidget: { backgroundColor: '#151820', borderRadius: 12, marginHorizontal: SPACING.md, marginTop: SPACING.md, padding: SPACING.sm, borderWidth: 1, borderColor: '#28313b' },
+  travelWidgetTitle: { fontSize: TYPE.small, color: THEME.muted, fontWeight: '700', marginBottom: 6, textTransform: 'uppercase' },
+  travelWidgetRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  travelWidgetLabel: { color: THEME.muted, fontSize: TYPE.small },
+  travelWidgetValue: { color: THEME.text, fontWeight: '600' },
+  travelWidgetProgress: { marginTop: 8, height: 8, borderRadius: 6, backgroundColor: '#0b0b0b', overflow: 'hidden' },
+  travelWidgetFill: { height: '100%', backgroundColor: THEME.accent },
+  travelWidgetButton: { backgroundColor: '#151515', marginHorizontal: SPACING.md, marginTop: SPACING.sm, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 10, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#444' },
+  travelWidgetButtonText: { flex: 1, color: THEME.text, fontSize: TYPE.body, fontWeight: '600', marginLeft: 12 },
+
+  moneyGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: SPACING.md },
+  moneyItem: { flex: 1, alignItems: 'center' },
+  moneyLabel: { fontSize: TYPE.small, color: THEME.muted },
+  moneyValue: { fontSize: TYPE.body, fontWeight: '800', color: THEME.accent },
+  moneyValuePoints: { fontSize: TYPE.body, fontWeight: '800', color: THEME.warn },
+
+  bankSection: { backgroundColor: '#252525', padding: SPACING.sm, borderRadius: 8, marginBottom: SPACING.sm },
+  bankRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  bankLabel: { fontSize: TYPE.small, color: THEME.muted },
+  bankValue: { fontSize: TYPE.body, fontWeight: 'bold', color: THEME.accent },
+  bankTime: { fontSize: TYPE.small, color: '#ffc107', marginTop: 8 },
+  companySection: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#252525', padding: SPACING.sm, borderRadius: 8 },
+  companyLabel: { fontSize: TYPE.small, color: THEME.muted },
+  companyValue: { fontSize: TYPE.body, fontWeight: 'bold', color: THEME.accentAlt },
+
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  statItem: { width: '48%', backgroundColor: '#151617', padding: SPACING.sm, borderRadius: 10, marginBottom: SPACING.sm },
+  statLabel: { fontSize: TYPE.small, color: THEME.muted, marginBottom: 6 },
+  statBase: { fontSize: TYPE.small, color: '#bdbdbd' },
+  statEffective: { fontSize: TYPE.body, fontWeight: '700', marginTop: 6 },
+  boosted: { color: THEME.accent },
+  reduced: { color: THEME.danger },
+  neutral: { color: THEME.text },
+
+  totalStats: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#151617', padding: SPACING.sm, borderRadius: 10, marginTop: SPACING.sm },
+  totalLabel: { fontSize: TYPE.small, color: THEME.muted, fontWeight: '600' },
+  totalValue: { fontSize: TYPE.title, fontWeight: '800', color: '#9c27b0' },
+  totalBase: { fontSize: TYPE.small, color: '#bbb', marginBottom: 2 },
+
+  actionButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#151617', padding: SPACING.md, borderRadius: 10, marginTop: SPACING.sm },
+  actionButtonText: { flex: 1, fontSize: TYPE.body, fontWeight: '700', color: THEME.text, marginLeft: 12 },
+
+  statusGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  statusItem: { width: '48%', backgroundColor: '#151617', padding: SPACING.sm, borderRadius: 10, marginBottom: SPACING.sm },
+  statusLabel: { fontSize: TYPE.small, color: THEME.muted, marginBottom: 4 },
+  statusValue: { fontSize: TYPE.small, color: THEME.text },
+});
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: THEME.bg },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: THEME.bg },
+  loadingText: { color: THEME.muted, marginTop: 10, fontSize: TYPE.body },
+  errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: THEME.bg },
+  errorText: { color: THEME.danger, fontSize: 18, marginBottom: 20 },
+  retryButton: { backgroundColor: THEME.danger, paddingHorizontal: 30, paddingVertical: 12, borderRadius: 8 },
+  retryButtonText: { color: THEME.text, fontSize: TYPE.body, fontWeight: '600' },
+  scrollView: { flex: 1 },
+});
